@@ -8,6 +8,7 @@ import {
   VIEW_W,
 } from "./canvas";
 import { drawGarden, FIELD_BOTTOM, FIELD_TOP, updateGarden } from "./garden";
+import { drawLep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
@@ -17,9 +18,6 @@ const enum State {
 }
 let state: State = State.Idle;
 let time = 0;
-
-// ponytail: debug marker for viewport acceptance; replaced by real input handling later
-let mark: { x: number; y: number } | undefined;
 
 addEventListener("keydown", (e) => {
   if (e.code === "Space" && state === State.Idle) {
@@ -31,7 +29,11 @@ canvas.addEventListener("pointerdown", (e) => {
     state = State.Playing;
     return;
   }
-  mark = toLogical(e);
+  const p = toLogical(e);
+  // taps on the HUD/toolbar strips don't move him
+  if (p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
+    sendLepTo(p.x, p.y);
+  }
 });
 
 start(
@@ -42,6 +44,7 @@ start(
     }
     time += dt;
     updateGarden(dt);
+    updateLep(dt);
   },
   // render
   () => {
@@ -61,15 +64,7 @@ start(
     ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);
     ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawGarden(time);
-    if (mark) {
-      ctx.strokeStyle = "#fff";
-      ctx.beginPath();
-      ctx.moveTo(mark.x - 8, mark.y);
-      ctx.lineTo(mark.x + 8, mark.y);
-      ctx.moveTo(mark.x, mark.y - 8);
-      ctx.lineTo(mark.x, mark.y + 8);
-      ctx.stroke();
-    }
+    drawLep(time);
     ctx.restore();
   },
 );
