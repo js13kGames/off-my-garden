@@ -10,6 +10,7 @@ import {
 import { drawGarden, FIELD_BOTTOM, FIELD_TOP, updateGarden } from "./garden";
 import { drawLep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
+import { drawUnicorns, updateUnicorns } from "./unicorn";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
@@ -45,6 +46,7 @@ start(
     time += dt;
     updateGarden(dt);
     updateLep(dt);
+    updateUnicorns(dt);
   },
   // render
   () => {
@@ -64,6 +66,7 @@ start(
     ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);
     ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawGarden(time);
+    drawUnicorns(time);
     drawLep(time);
     ctx.restore();
   },
