@@ -13,3 +13,5 @@ existing comments during refactors; update them if stale.
   while keeping expressiveness.
 - Use readable variables. UnicornState and not US since bundler will compact
   code anyway.
+- Comments must stand alone: never reference ticket numbers (`015:`,
+  `(022)`) — explain the why inline instead
