@@ -11,3 +11,5 @@ existing comments during refactors; update them if stale.
 - Biome governs style (`pnpm lint`). Do not bypass its rules in source.
 - prefer `const enum` string unions: it erases entirely and saves bundle size
   while keeping expressiveness.
+- Use readable variables. UnicornState and not US since bundler will compact
+  code anyway.

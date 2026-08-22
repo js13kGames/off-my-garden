@@ -1,16 +1,26 @@
 import { ctx, VIEW_W } from "./canvas";
-import { beds, FIELD_BOTTOM, FIELD_TOP } from "./garden";
+import { beds, FIELD_BOTTOM, FIELD_TOP, type Flower } from "./garden";
+
+// module-local: an exported const enum would stop erasing under isolatedModules
+const enum UnicornState {
+  Warn,
+  Wander,
+  Notice,
+  Target,
+  Leave,
+}
 
 export type Unicorn = {
   x: number;
   y: number;
-  state: "warn" | "wander" | "leave";
+  state: UnicornState;
   timer: number;
   wx: number; // current waypoint
   wy: number;
   hops: number; // wander waypoints left before heading for an exit
   speed: number;
   legPhase: number;
+  target?: Flower; // noticed flower, set while Notice/Target
 };
 
 export const unicorns: Unicorn[] = [];
@@ -18,6 +28,10 @@ export const unicorns: Unicorn[] = [];
 // Early game: only a few unicorns at once (waves escalate this later)
 const CAP = 3;
 const WARN_TIME = 1.2;
+// The telegraph: pause before committing to a flower is the player's reaction window.
+const NOTICE_TIME = 0.7;
+const NOTICE_RADIUS = 70;
+const NOTICE_RATE = 0.4; // chance/second of noticing a flower while wandering
 const SPAWN_EVERY = 4;
 let spawnTimer = 2;
 
@@ -64,6 +78,25 @@ function setWaypoint(u: Unicorn, p: { x: number; y: number }) {
   u.wy = p.y;
 }
 
+// closest visible (past-sprout) flower within notice radius, or none
+function nearestFlower(u: Unicorn) {
+  let best: Flower | undefined;
+  let bestDist = NOTICE_RADIUS;
+  for (const b of beds) {
+    for (const f of b.flowers) {
+      if (f.growth < 0.33) {
+        continue;
+      }
+      const d = Math.hypot(f.x - u.x, f.y - u.y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = f;
+      }
+    }
+  }
+  return best;
+}
+
 export function updateUnicorns(dt: number) {
   spawnTimer -= dt;
   if (spawnTimer <= 0 && unicorns.length < CAP) {
@@ -72,7 +105,7 @@ export function updateUnicorns(dt: number) {
     unicorns.push({
       x: s.x,
       y: s.y,
-      state: "warn",
+      state: UnicornState.Warn,
       timer: WARN_TIME,
       wx: s.x,
       wy: s.y,
@@ -84,13 +117,31 @@ export function updateUnicorns(dt: number) {
 
   for (let i = unicorns.length - 1; i >= 0; i--) {
     const u = unicorns[i];
-    if (u.state === "warn") {
+    if (u.state === UnicornState.Warn) {
       u.timer -= dt;
       if (u.timer <= 0) {
-        u.state = "wander";
+        u.state = UnicornState.Wander;
         setWaypoint(u, openPoint());
       }
       continue;
+    }
+    if (u.state === UnicornState.Notice) {
+      // paused: legPhase doesn't advance, so the unicorn reads as stopped
+      u.timer -= dt;
+      if (u.timer <= 0) {
+        u.state = UnicornState.Target;
+        setWaypoint(u, u.target as Flower);
+      }
+      continue;
+    }
+    if (u.state === UnicornState.Wander && Math.random() < NOTICE_RATE * dt) {
+      const f = nearestFlower(u);
+      if (f) {
+        u.target = f;
+        u.state = UnicornState.Notice;
+        u.timer = NOTICE_TIME;
+        continue;
+      }
     }
     // walk toward the current waypoint
     const dx = u.wx - u.x;
@@ -101,12 +152,17 @@ export function updateUnicorns(dt: number) {
     if (dist <= step) {
       u.x = u.wx;
       u.y = u.wy;
-      if (u.state === "leave") {
+      if (u.state === UnicornState.Leave) {
         unicorns.splice(i, 1);
-      } else if (u.hops-- > 0) {
+        continue;
+      }
+      if (u.state === UnicornState.Target) {
+        u.state = UnicornState.Wander; // 007: trample the flower here
+      }
+      if (u.hops-- > 0) {
         setWaypoint(u, openPoint());
       } else {
-        u.state = "leave";
+        u.state = UnicornState.Leave;
         setWaypoint(u, SPAWNS[(Math.random() * SPAWNS.length) | 0]);
       }
       continue;
@@ -114,7 +170,7 @@ export function updateUnicorns(dt: number) {
     let nx = u.x + (dx / dist) * step;
     let ny = u.y + (dy / dist) * step;
     // beds are hazards from the unicorn's perspective: slide around them
-    if (u.state === "wander" && bedAt(nx, ny, 10)) {
+    if (u.state === UnicornState.Wander && bedAt(nx, ny, 10)) {
       if (!bedAt(nx, u.y, 10)) {
         ny = u.y;
       } else if (!bedAt(u.x, ny, 10)) {
@@ -181,9 +237,45 @@ function drawUnicorn(u: Unicorn, time: number) {
   ctx.restore();
 }
 
+// speech-bubble telegraph: shown above a Notice-state unicorn, with a tiny
+// rosette in the noticed flower's hue so the player sees exactly what's at risk
+function drawThoughtBubble(u: Unicorn, time: number) {
+  const hue = (u.target as Flower).hue;
+  const bob = Math.sin(time * 6) * 1;
+  const bx = u.x + 14;
+  const by = u.y - 30 + bob;
+  ctx.fillStyle = "rgba(255,255,255,.92)";
+  ctx.strokeStyle = "rgba(120,90,140,.6)";
+  ctx.lineWidth = 1;
+  for (const [ox, oy, r] of [
+    [6, 14, 2],
+    [10, 20, 3],
+  ] as const) {
+    ctx.beginPath();
+    ctx.arc(u.x + ox, u.y - oy, r, 0, 7);
+    ctx.fill();
+    ctx.stroke();
+  }
+  ctx.beginPath();
+  ctx.arc(bx, by, 11, 0, 7);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = `hsl(${hue},80%,55%)`;
+  for (let i = 0; i < 5; i++) {
+    const a = (i / 5) * Math.PI * 2;
+    ctx.beginPath();
+    ctx.arc(bx + Math.cos(a) * 3.5, by + Math.sin(a) * 3.5, 2.4, 0, 7);
+    ctx.fill();
+  }
+  ctx.fillStyle = "#ffd54a";
+  ctx.beginPath();
+  ctx.arc(bx, by, 1.8, 0, 7);
+  ctx.fill();
+}
+
 export function drawUnicorns(time: number) {
   for (const u of unicorns) {
-    if (u.state === "warn") {
+    if (u.state === UnicornState.Warn) {
       // edge warning marker where the unicorn is about to enter
       const mx = Math.min(Math.max(u.x, 14), VIEW_W - 14);
       const my = Math.min(Math.max(u.y, FIELD_TOP + 14), FIELD_BOTTOM - 14);
@@ -199,5 +291,8 @@ export function drawUnicorns(time: number) {
       continue;
     }
     drawUnicorn(u, time);
+    if (u.state === UnicornState.Notice) {
+      drawThoughtBubble(u, time);
+    }
   }
 }
