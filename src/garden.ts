@@ -10,6 +10,7 @@ export type Flower = {
   growth: number; // 0..1, 1 = mature
   rate: number; // growth per second
   hue: number;
+  flat: number; // seconds left flattened, 0 = standing
 };
 
 export type Bed = {
@@ -22,6 +23,8 @@ export type Bed = {
 
 // Full regrowth takes ~20 s, with per-flower variance so beds don't pulse in sync
 const GROW_TIME = 20;
+// How long a trampled flower stays flattened before it resumes growing
+const FLAT_TIME = 1.2;
 
 function makeBed(x: number, y: number, hue: number): Bed {
   const w = 96;
@@ -35,6 +38,7 @@ function makeBed(x: number, y: number, hue: number): Bed {
         growth: Math.random() * 0.5,
         rate: (0.8 + Math.random() * 0.4) / GROW_TIME,
         hue,
+        flat: 0,
       });
     }
   }
@@ -50,9 +54,20 @@ export const beds: Bed[] = [
   makeBed(236, 462, 275), // E — violets
 ];
 
+// Flattens a flower back to a bare sprout; it regrows on the normal timer
+// once the flatten animation (below) finishes.
+export function trample(f: Flower) {
+  f.growth = 0;
+  f.flat = FLAT_TIME;
+}
+
 export function updateGarden(dt: number) {
   for (const bed of beds) {
     for (const f of bed.flowers) {
+      if (f.flat > 0) {
+        f.flat = Math.max(0, f.flat - dt);
+        continue;
+      }
       f.growth = Math.min(1, f.growth + f.rate * dt);
     }
   }
@@ -62,6 +77,23 @@ function drawFlower(f: Flower, time: number) {
   const g = f.growth;
   ctx.save();
   ctx.translate(f.x, f.y);
+  if (f.flat > 0) {
+    // trample feedback: a fading dust ring plus the crushed petals squashed
+    // flat against the soil, both shrinking away as regrowth takes over
+    const k = f.flat / FLAT_TIME;
+    ctx.strokeStyle = `rgba(180,150,110,${0.5 * k})`;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(0, 2, 6 + 10 * (1 - k), 0, 7);
+    ctx.stroke();
+    ctx.save();
+    ctx.scale(1.3, 0.25);
+    ctx.fillStyle = `hsla(${f.hue},80%,45%,${k})`;
+    ctx.beginPath();
+    ctx.arc(0, 2, 5, 0, 7);
+    ctx.fill();
+    ctx.restore();
+  }
   if (g >= 1) {
     // mature: subtle pulsing halo instead of a permanent icon
     const pulse = 0.5 + 0.5 * Math.sin(time * 4 + f.x);

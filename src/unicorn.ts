@@ -1,5 +1,5 @@
 import { ctx, VIEW_W } from "./canvas";
-import { beds, FIELD_BOTTOM, FIELD_TOP, type Flower } from "./garden";
+import { beds, FIELD_BOTTOM, FIELD_TOP, type Flower, trample } from "./garden";
 
 // module-local: an exported const enum would stop erasing under isolatedModules
 const enum UnicornState {
@@ -32,6 +32,10 @@ const WARN_TIME = 1.2;
 const NOTICE_TIME = 0.7;
 const NOTICE_RADIUS = 70;
 const NOTICE_RATE = 0.4; // chance/second of noticing a flower while wandering
+// Flowers this close to a unicorn's hooves get trampled, in any state — a hit
+// radius smaller than the 28px flower spacing so a pass-through costs one or
+// two flowers, not the whole bed.
+const TRAMPLE_RADIUS = 9;
 const SPAWN_EVERY = 4;
 let spawnTimer = 2;
 
@@ -117,6 +121,18 @@ export function updateUnicorns(dt: number) {
 
   for (let i = unicorns.length - 1; i >= 0; i--) {
     const u = unicorns[i];
+    // Damage follows the hooves, not just the noticed target: any flower a
+    // unicorn stands on gets trampled, in every state.
+    for (const b of beds) {
+      for (const f of b.flowers) {
+        if (
+          f.growth >= 0.33 &&
+          Math.hypot(f.x - u.x, f.y - u.y) < TRAMPLE_RADIUS
+        ) {
+          trample(f);
+        }
+      }
+    }
     if (u.state === UnicornState.Warn) {
       u.timer -= dt;
       if (u.timer <= 0) {
@@ -157,7 +173,10 @@ export function updateUnicorns(dt: number) {
         continue;
       }
       if (u.state === UnicornState.Target) {
-        u.state = UnicornState.Wander; // 007: trample the flower here
+        // the target flower already died underfoot via the trample check
+        // above; just resume wandering
+        u.target = undefined;
+        u.state = UnicornState.Wander;
       }
       if (u.hops-- > 0) {
         setWaypoint(u, openPoint());
@@ -169,8 +188,9 @@ export function updateUnicorns(dt: number) {
     }
     let nx = u.x + (dx / dist) * step;
     let ny = u.y + (dy / dist) * step;
-    // beds are hazards from the unicorn's perspective: slide around them
-    if (u.state === UnicornState.Wander && bedAt(nx, ny, 10)) {
+    // beds are hazards from the unicorn's perspective: slide around them,
+    // except when charging a target — that's the one time it walks in on purpose
+    if (u.state !== UnicornState.Target && bedAt(nx, ny, 10)) {
       if (!bedAt(nx, u.y, 10)) {
         ny = u.y;
       } else if (!bedAt(u.x, ny, 10)) {
