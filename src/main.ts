@@ -7,8 +7,15 @@ import {
   VIEW_H,
   VIEW_W,
 } from "./canvas";
-import { drawGarden, FIELD_BOTTOM, FIELD_TOP, updateGarden } from "./garden";
-import { drawLep, sendLepTo, updateLep } from "./leprechaun";
+import {
+  drawGarden,
+  FIELD_BOTTOM,
+  FIELD_TOP,
+  sellAt,
+  updateGarden,
+} from "./garden";
+import { addCoins, drawHud, updateHud } from "./hud";
+import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 import { drawUnicorns, updateUnicorns } from "./unicorn";
 
@@ -31,6 +38,11 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   const p = toLogical(e);
+  const f = sellAt(p.x, p.y, lep.x, lep.y);
+  if (f) {
+    addCoins(f.x, f.y);
+    return; // sell taps are consumed — he stays where he is
+  }
   // taps on the HUD/toolbar strips don't move him
   if (p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
     sendLepTo(p.x, p.y);
@@ -47,6 +59,7 @@ start(
     updateGarden(dt);
     updateLep(dt);
     updateUnicorns(dt);
+    updateHud(dt);
   },
   // render
   () => {
@@ -68,6 +81,7 @@ start(
     drawGarden(time);
     drawUnicorns(time);
     drawLep(time);
+    drawHud();
     ctx.restore();
   },
 );

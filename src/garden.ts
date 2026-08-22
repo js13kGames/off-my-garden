@@ -61,6 +61,51 @@ export function trample(f: Flower) {
   f.flat = FLAT_TIME;
 }
 
+// Fingers are fat and flowers sit 28 px apart — half that spacing is a
+// generous target that still can't hit two flowers at once.
+const SELL_RADIUS = 14;
+// Harvesting needs the lep nearby (of the bed, not the exact flower) so
+// selling isn't free from across the garden — he has to tend the patch.
+const SELL_RANGE = 50;
+
+function distToBed(bed: Bed, x: number, y: number) {
+  const cx = Math.min(Math.max(x, bed.x), bed.x + bed.w);
+  const cy = Math.min(Math.max(y, bed.y), bed.y + bed.h);
+  return Math.hypot(x - cx, y - cy);
+}
+
+// Nearest mature flower under a tap, harvested back to a bare sprout, but
+// only in beds the lep is standing close to. Out-of-range or immature-flower
+// taps fall through to the lep, e.g. as ordinary ground movement.
+export function sellAt(
+  x: number,
+  y: number,
+  lepX: number,
+  lepY: number,
+): Flower | undefined {
+  let best: Flower | undefined;
+  let bestDist = SELL_RADIUS;
+  for (const bed of beds) {
+    if (distToBed(bed, lepX, lepY) > SELL_RANGE) {
+      continue;
+    }
+    for (const f of bed.flowers) {
+      if (f.growth < 1) {
+        continue;
+      }
+      const d = Math.hypot(f.x - x, f.y - y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = f;
+      }
+    }
+  }
+  if (best) {
+    best.growth = 0;
+  }
+  return best;
+}
+
 export function updateGarden(dt: number) {
   for (const bed of beds) {
     for (const f of bed.flowers) {
