@@ -17,7 +17,9 @@ traffic around them.
    thought bubble — then walk over and trample it.
 3. The player taps the ground to send the leprechaun places, taps mature flowers to
    sell them for coins, and uses three tools to redirect unicorns.
-4. Waves escalate: more unicorns, more nervous ones, less reaction time.
+4. Waves are discrete rounds that escalate: bigger rosters, more nervous
+   unicorns, less reaction time. When a wave's unicorns are all gone, flowers
+   reset and a shop opens where coins buy tool stock for the next wave.
 
 ## Screen & layout
 
@@ -49,10 +51,12 @@ traffic around them.
 ## Entities & rules
 
 ### Flowers
-- Beds are pre-seeded; flowers grow through stages automatically (no planting action).
-- **Trampled** flower: flattened, regrows automatically from stage 0.
+- Beds are pre-seeded; every flower resets to stage 0 at each wave start and
+  grows through stages over time within the wave.
+- **Trampled** flower: flattened; stays down for the rest of the wave.
 - **Mature** flower: subtle pulsing halo (no permanent coin icons). Tap to sell:
-  `+coins` popup, flower regresses to stage 0 and regrows.
+  `+coins` popup; the flower stays sold for the rest of the wave.
+- All flowers come back at stage 0 when the next wave begins.
 
 ### Unicorns
 - State machine: `enter → wander → NOTICE → walk-to-flower → trample → wander/leave`.
@@ -69,7 +73,9 @@ traffic around them.
   cursor). Positioning is a real decision.
 
 ### Tools (bottom toolbar)
-Select by tap, or keys `1`/`2`/`3`. Selected tool gets a simple highlight.
+Select by tap, or keys `1`/`2`/`3`. Selected tool gets a simple highlight. Each
+tool has a stock count; using a tool consumes one unit, and stock is bought
+between waves in the shop. Zero-stock tools are grayed out.
 - 🔊 **Noisemaker** — select, tap a location: the leprechaun runs there and, when
   close enough, scares nearby unicorns away. Requires proximity.
 - ☘️ **Repellent** — placed on the ground; unicorns avoid its visible radius.
@@ -80,15 +86,19 @@ Select by tap, or keys `1`/`2`/`3`. Selected tool gets a simple highlight.
   pause + thought bubble; repellent/attractor = visible radius; incoming unicorn =
   edge warning.
 
-## Game structure (POC)
+## Game structure
 
-The POC has **no win/lose condition**: the core loop runs endlessly with coins as
-score. It exists to answer one question:
+A wave ends when every unicorn it spawned has left the field; then flowers reset
+and the shop opens before the next wave begins. There is **no win condition** —
+waves escalate forever. The lose condition is the garden dying: when the last
+flower is gone the run ends immediately, scored by waves survived and coins
+collected.
+
+It exists to answer one question:
 
 > Is manipulating silly unicorn traffic while desperately protecting a garden fun?
 
 Candidate structures for the full game (post-POC):
-- **Money goal** — reach a coin target to win.
 - **Rainbow power** — a meter that fills as flowers are sold; at max, a big rainbow
   celebration shines across the screen, the meter resets, and completed rainbows
   are counted indefinitely with a recorded best.
