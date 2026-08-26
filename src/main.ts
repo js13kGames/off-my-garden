@@ -17,6 +17,7 @@ import {
 import { addCoins, drawHud, updateHud } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
+import { drawToolbar, takeTool, toolbarTap } from "./toolbar";
 import { drawUnicorns, updateUnicorns } from "./unicorn";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
@@ -38,6 +39,12 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   const p = toLogical(e);
+  if (toolbarTap(p.x, p.y)) {
+    return; // toolbar buttons are consumed — never reach the playfield
+  }
+  if (takeTool() !== undefined) {
+    return; // a selected tool claimed this tap as its target (effect: later ticket)
+  }
   const f = sellAt(p.x, p.y, lep.x, lep.y);
   if (f) {
     addCoins(f.x, f.y);
@@ -82,6 +89,7 @@ start(
     drawUnicorns(time);
     drawLep(time);
     drawHud();
+    drawToolbar();
     ctx.restore();
   },
 );
