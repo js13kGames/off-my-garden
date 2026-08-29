@@ -1,13 +1,8 @@
 import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM } from "./garden";
 
-// module-local: an exported const enum would stop erasing under isolatedModules
-const enum Tool {
-  Noise,
-  Repel,
-  Attract,
-}
-
+// Tool indices: 0=noise, 1=repel, 2=attract. Const enum erased; kept as
+// comments so the mapping is visible in source.
 const TOOLS = [
   { icon: "\u{1F50A}" }, // 🔊 noise
   { icon: "\u2618\uFE0F" }, // ☘️ repel
@@ -18,7 +13,15 @@ const TOOLS = [
 // between-wave purchases.
 const stock = [3, 3, 3];
 
-let selected: Tool | undefined;
+let busy = false;
+
+export function setBusy(b: boolean) {
+  busy = b;
+}
+
+export function isBusy(): boolean {
+  return busy;
+}
 
 // Buttons sit in the strip below the playfield, evenly spaced with side margins
 const BTN_W = 104;
@@ -29,48 +32,41 @@ const btnX = (i: number) =>
   (VIEW_W - TOOLS.length * BTN_W - (TOOLS.length - 1) * GAP) / 2 +
   i * (BTN_W + GAP);
 
-function toggle(t: Tool) {
-  // empty tools reject selection — nothing to spend
-  if (stock[t] === 0) {
-    return;
-  }
-  selected = selected === t ? undefined : t;
-}
-
-/** Tap routing for the toolbar strip; true when the tap hit a button. */
-export function toolbarTap(x: number, y: number): boolean {
+/**
+ * Tap routing for the toolbar strip. Returns the tool index when a button
+ * with stock is tapped (consumes one unit), or -1 for misses, empty tools,
+ * or when another tool is busy.
+ */
+export function toolbarTap(x: number, y: number): number {
   if (y < BTN_Y || y > BTN_Y + BTN_H) {
-    return false;
+    return -1;
   }
   for (let i = 0; i < TOOLS.length; i++) {
     const bx = btnX(i);
     if (x >= bx && x <= bx + BTN_W) {
-      toggle(i);
-      return true;
+      if (busy || stock[i] === 0) {
+        return -1;
+      }
+      stock[i]--;
+      return i;
     }
   }
-  return false;
+  return -1;
 }
 
 /** Keyboard shortcut: digit is 1-based (1/2/3), anything else ignored. */
 export function toolbarKey(digit: number) {
-  if (digit >= 1 && digit <= TOOLS.length) {
-    toggle(digit - 1);
+  if (digit >= 1 && digit <= TOOLS.length && !busy && stock[digit - 1] > 0) {
+    stock[digit - 1]--;
+    pending = digit - 1;
   }
 }
 
-/**
- * Consumes one unit of stock from the selected tool, clears the selection and
- * reports which tool fired so callers can apply its effect at the tap point.
- * Undefined when no tool is selected.
- */
-export function takeTool(): Tool | undefined {
-  if (selected === undefined) {
-    return undefined;
-  }
-  const t = selected;
-  selected = undefined;
-  stock[t]--;
+let pending = -1;
+/** Returns the tool fired by keyboard, or -1. Clears the pending state. */
+export function takePending(): number {
+  const t = pending;
+  pending = -1;
   return t;
 }
 
@@ -85,12 +81,6 @@ export function drawToolbar() {
     ctx.beginPath();
     ctx.roundRect(x, BTN_Y, BTN_W, BTN_H, 8);
     ctx.fill();
-    if (selected === i) {
-      // simple rectangular highlight around the selected tool
-      ctx.strokeStyle = "#ffd54a";
-      ctx.lineWidth = 3;
-      ctx.stroke();
-    }
     ctx.globalAlpha = empty ? 0.4 : 1;
     // icon, nudged left so it clears the corner badge
     ctx.font = "20px sans-serif";

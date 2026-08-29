@@ -17,8 +17,15 @@ import {
 import { addCoins, drawHud, updateHud } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
-import { drawToolbar, takeTool, toolbarTap } from "./toolbar";
-import { drawUnicorns, updateUnicorns } from "./unicorn";
+import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
+import {
+  drawToolbar,
+  setBusy,
+  takePending,
+  toolbarKey,
+  toolbarTap,
+} from "./toolbar";
+import { drawUnicorns, scareUnicorns, updateUnicorns } from "./unicorn";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
@@ -32,6 +39,9 @@ addEventListener("keydown", (e) => {
   if (e.code === "Space" && state === State.Idle) {
     state = State.Playing;
   }
+  if (e.key >= "1" && e.key <= "3") {
+    toolbarKey(Number(e.key));
+  }
 });
 canvas.addEventListener("pointerdown", (e) => {
   if (state === State.Idle) {
@@ -39,11 +49,17 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   const p = toLogical(e);
-  if (toolbarTap(p.x, p.y)) {
-    return; // toolbar buttons are consumed — never reach the playfield
+  const tool = toolbarTap(p.x, p.y);
+  if (tool === 0) {
+    // Noise: fired immediately by toolbarTap — apply effect
+    lep.moving = false;
+    scareUnicorns(lep.x, lep.y);
+    startRing();
+    setBusy(true);
+    return;
   }
-  if (takeTool() !== undefined) {
-    return; // a selected tool claimed this tap as its target (effect: later ticket)
+  if (tool >= 0) {
+    return; // other tools consumed — effects in later tickets
   }
   const f = sellAt(p.x, p.y, lep.x, lep.y);
   if (f) {
@@ -66,6 +82,17 @@ start(
     updateGarden(dt);
     updateLep(dt);
     updateUnicorns(dt);
+    updateNoise(dt);
+    if (!isRingBusy()) {
+      setBusy(false);
+    }
+    const kb = takePending();
+    if (kb === 0) {
+      lep.moving = false;
+      scareUnicorns(lep.x, lep.y);
+      startRing();
+      setBusy(true);
+    }
     updateHud(dt);
   },
   // render
@@ -87,6 +114,7 @@ start(
     ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawGarden(time);
     drawUnicorns(time);
+    drawNoise();
     drawLep(time);
     drawHud();
     drawToolbar();

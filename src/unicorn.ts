@@ -8,6 +8,7 @@ const enum UnicornState {
   Notice,
   Target,
   Leave,
+  Scared,
 }
 
 export type Unicorn = {
@@ -101,6 +102,34 @@ function nearestFlower(u: Unicorn) {
   return best;
 }
 
+export function scareUnicorns(originX: number, originY: number) {
+  for (const u of unicorns) {
+    if (u.state === UnicornState.Scared) {
+      continue;
+    }
+    const dx = u.x - originX;
+    const dy = u.y - originY;
+    // Flee to the nearest edge in the direction away from the noise.
+    // Pick the dominant axis to determine which edge to head for.
+    const ax = Math.abs(dx);
+    const ay = Math.abs(dy);
+    let fleeX: number;
+    let fleeY: number;
+    if (ax >= ay) {
+      // heading for left or right edge — walk straight to it
+      fleeX = dx > 0 ? VIEW_W + 30 : -30;
+      fleeY = u.y;
+    } else {
+      // heading for top or bottom edge
+      fleeX = u.x;
+      fleeY = dy > 0 ? FIELD_BOTTOM + 30 : FIELD_TOP - 30;
+    }
+    u.state = UnicornState.Scared;
+    setWaypoint(u, { x: fleeX, y: fleeY });
+    u.target = undefined;
+  }
+}
+
 export function updateUnicorns(dt: number) {
   spawnTimer -= dt;
   if (spawnTimer <= 0 && unicorns.length < CAP) {
@@ -172,6 +201,11 @@ export function updateUnicorns(dt: number) {
         unicorns.splice(i, 1);
         continue;
       }
+      if (u.state === UnicornState.Scared) {
+        // reached the edge — leave the field
+        unicorns.splice(i, 1);
+        continue;
+      }
       if (u.state === UnicornState.Target) {
         // the target flower already died underfoot via the trample check
         // above; just resume wandering
@@ -190,7 +224,11 @@ export function updateUnicorns(dt: number) {
     let ny = u.y + (dy / dist) * step;
     // beds are hazards from the unicorn's perspective: slide around them,
     // except when charging a target — that's the one time it walks in on purpose
-    if (u.state !== UnicornState.Target && bedAt(nx, ny, 10)) {
+    if (
+      u.state !== UnicornState.Target &&
+      u.state !== UnicornState.Scared &&
+      bedAt(nx, ny, 10)
+    ) {
       if (!bedAt(nx, u.y, 10)) {
         ny = u.y;
       } else if (!bedAt(u.x, ny, 10)) {
