@@ -18,6 +18,7 @@ import { addCoins, drawHud, updateHud } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
+import { drawPlaceables, placeRepellent, updatePlaceables } from "./placeable";
 import {
   drawToolbar,
   setBusy,
@@ -35,6 +36,21 @@ const enum State {
 let state: State = State.Idle;
 let time = 0;
 
+// Tools all work the same way: the button fires them where the leprechaun
+// stands, so placing him is the whole decision. The toolbar has already spent
+// the stock by the time this runs.
+function useTool(tool: number) {
+  lep.moving = false; // he stops where he is to use it
+  if (tool === 0) {
+    scareUnicorns(lep.x, lep.y);
+    startRing();
+    setBusy(true);
+  } else if (tool === 1) {
+    placeRepellent(lep.x, lep.y);
+  }
+  // the attractor is consumed with no effect until its own ticket
+}
+
 addEventListener("keydown", (e) => {
   if (e.code === "Space" && state === State.Idle) {
     state = State.Playing;
@@ -50,16 +66,9 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   const p = toLogical(e);
   const tool = toolbarTap(p.x, p.y);
-  if (tool === 0) {
-    // Noise: fired immediately by toolbarTap — apply effect
-    lep.moving = false;
-    scareUnicorns(lep.x, lep.y);
-    startRing();
-    setBusy(true);
-    return;
-  }
   if (tool >= 0) {
-    return; // other tools consumed — effects in later tickets
+    useTool(tool);
+    return;
   }
   const f = sellAt(p.x, p.y, lep.x, lep.y);
   if (f) {
@@ -83,15 +92,13 @@ start(
     updateLep(dt);
     updateUnicorns(dt);
     updateNoise(dt);
+    updatePlaceables(dt);
     if (!isRingBusy()) {
       setBusy(false);
     }
     const kb = takePending();
-    if (kb === 0) {
-      lep.moving = false;
-      scareUnicorns(lep.x, lep.y);
-      startRing();
-      setBusy(true);
+    if (kb >= 0) {
+      useTool(kb);
     }
     updateHud(dt);
   },
@@ -113,6 +120,7 @@ start(
     ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);
     ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawGarden(time);
+    drawPlaceables(time);
     drawUnicorns(time);
     drawNoise();
     drawLep(time);

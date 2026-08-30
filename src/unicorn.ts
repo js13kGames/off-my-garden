@@ -1,5 +1,6 @@
 import { ctx, VIEW_W } from "./canvas";
 import { beds, FIELD_BOTTOM, FIELD_TOP, type Flower, trample } from "./garden";
+import { inRepellent, placeables, REPEL_RADIUS } from "./placeable";
 
 // module-local: an exported const enum would stop erasing under isolatedModules
 const enum UnicornState {
@@ -37,6 +38,9 @@ const NOTICE_RATE = 0.4; // chance/second of noticing a flower while wandering
 // radius smaller than the 28px flower spacing so a pass-through costs one or
 // two flowers, not the whole bed.
 const TRAMPLE_RADIUS = 9;
+// Unicorns start turning just before a repellent's edge, so they read as
+// avoiding the area rather than bouncing off it
+const AVOID_MARGIN = 6;
 const SPAWN_EVERY = 4;
 let spawnTimer = 2;
 
@@ -71,7 +75,7 @@ function openPoint() {
   for (let i = 0; i < 30; i++) {
     const x = 25 + Math.random() * 310;
     const y = FIELD_TOP + 30 + Math.random() * (FIELD_BOTTOM - FIELD_TOP - 60);
-    if (!bedAt(x, y, 16)) {
+    if (!bedAt(x, y, 16) && !inRepellent(x, y)) {
       return { x, y };
     }
   }
@@ -89,7 +93,9 @@ function nearestFlower(u: Unicorn) {
   let bestDist = NOTICE_RADIUS;
   for (const b of beds) {
     for (const f of b.flowers) {
-      if (f.growth < 0.33) {
+      // flowers under a repellent stop being noticeable — the tool has to
+      // protect the bed it covers, not just bend traffic around it
+      if (f.growth < 0.33 || inRepellent(f.x, f.y)) {
         continue;
       }
       const d = Math.hypot(f.x - u.x, f.y - u.y);
@@ -162,6 +168,19 @@ export function updateUnicorns(dt: number) {
         }
       }
     }
+    // A repellent dropped on a unicorn's plans invalidates them: a covered
+    // flower is abandoned and a covered waypoint is re-picked, so nobody
+    // orbits a radius forever chasing something it can no longer reach.
+    // Leaving unicorns keep their edge waypoint — that one means "despawn".
+    if (u.state !== UnicornState.Scared && u.state !== UnicornState.Leave) {
+      if (u.target && inRepellent(u.target.x, u.target.y)) {
+        u.target = undefined;
+        u.state = UnicornState.Wander;
+        setWaypoint(u, openPoint());
+      } else if (inRepellent(u.wx, u.wy)) {
+        setWaypoint(u, openPoint());
+      }
+    }
     if (u.state === UnicornState.Warn) {
       u.timer -= dt;
       if (u.timer <= 0) {
@@ -220,8 +239,41 @@ export function updateUnicorns(dt: number) {
       }
       continue;
     }
-    let nx = u.x + (dx / dist) * step;
-    let ny = u.y + (dy / dist) * step;
+    let dirx = dx / dist;
+    let diry = dy / dist;
+    // Repellents are skirted, not butted into: a heading that points into the
+    // area is swapped for the tangent that carries the unicorn around the rim,
+    // and a repellent dropped on top of one pushes it back out.
+    // ponytail: no lookahead, so a waypoint right behind a radius is reached
+    // the long way round — swap in real path steering if that ever reads badly.
+    if (u.state !== UnicornState.Scared) {
+      for (const p of placeables) {
+        const ox = u.x - p.x;
+        const oy = u.y - p.y;
+        const d = Math.hypot(ox, oy) || 1;
+        if (d > REPEL_RADIUS + AVOID_MARGIN) {
+          continue;
+        }
+        const rx = ox / d;
+        const ry = oy / d;
+        if (dirx * rx + diry * ry < 0) {
+          // pass on the side the unicorn already leans toward; a dead-on
+          // approach ties, and the tie picks a side rather than stalling
+          const side = rx * diry - ry * dirx >= 0 ? 1 : -1;
+          dirx = -ry * side;
+          diry = rx * side;
+        }
+        if (d < REPEL_RADIUS) {
+          dirx += rx;
+          diry += ry;
+        }
+      }
+      const m = Math.hypot(dirx, diry) || 1;
+      dirx /= m;
+      diry /= m;
+    }
+    let nx = u.x + dirx * step;
+    let ny = u.y + diry * step;
     // beds are hazards from the unicorn's perspective: slide around them,
     // except when charging a target — that's the one time it walks in on purpose
     if (
