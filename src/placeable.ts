@@ -2,11 +2,18 @@ import { ctx } from "./canvas";
 
 export type Placeable = { x: number; y: number; life: number };
 
-export const placeables: Placeable[] = [];
+// Two arrays rather than a kind field: the array a placeable lives in is the
+// discriminator, and an exported const enum would stop erasing.
+export const repellents: Placeable[] = [];
+export const attractors: Placeable[] = [];
 
 // Roughly half a bed wide — one repellent covers a bed's approach, not the
 // whole walkway, so placement is a real decision.
 export const REPEL_RADIUS = 46;
+// The lure has to reach across a walkway to pull a unicorn off a bed it is
+// already walking at, so its pull is far wider than the repellent's push.
+// The drawn circle is exactly this radius — no invisible extra reach.
+const ATTRACT_RADIUS = 100;
 // Placeables expire so the garden doesn't stay fenced off; stock caps how many
 // can ever exist, expiry keeps the field from filling up.
 const LIFE = 12;
@@ -14,21 +21,30 @@ const LIFE = 12;
 const FADE = 2;
 
 export function placeRepellent(x: number, y: number) {
-  placeables.push({ x, y, life: LIFE });
+  repellents.push({ x, y, life: LIFE });
 }
 
-export function updatePlaceables(dt: number) {
-  for (let i = placeables.length - 1; i >= 0; i--) {
-    placeables[i].life -= dt;
-    if (placeables[i].life <= 0) {
-      placeables.splice(i, 1);
+export function placeAttractor(x: number, y: number) {
+  attractors.push({ x, y, life: LIFE });
+}
+
+function expire(items: Placeable[], dt: number) {
+  for (let i = items.length - 1; i >= 0; i--) {
+    items[i].life -= dt;
+    if (items[i].life <= 0) {
+      items.splice(i, 1);
     }
   }
 }
 
+export function updatePlaceables(dt: number) {
+  expire(repellents, dt);
+  expire(attractors, dt);
+}
+
 /** True inside any repellent radius — the single test all steering routes through. */
 export function inRepellent(x: number, y: number): boolean {
-  for (const p of placeables) {
+  for (const p of repellents) {
     if (Math.hypot(x - p.x, y - p.y) < REPEL_RADIUS) {
       return true;
     }
@@ -36,27 +52,72 @@ export function inRepellent(x: number, y: number): boolean {
   return false;
 }
 
-export function drawPlaceables(time: number) {
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  for (const p of placeables) {
+/** Closest attractor pulling on this point — the lure counterpart of inRepellent. */
+export function nearestAttractor(x: number, y: number): Placeable | undefined {
+  let best: Placeable | undefined;
+  let bestDist = ATTRACT_RADIUS;
+  for (const p of attractors) {
+    const d = Math.hypot(x - p.x, y - p.y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = p;
+    }
+  }
+  return best;
+}
+
+function drawField(
+  items: Placeable[],
+  time: number,
+  radius: number,
+  fill: string,
+  edge: string,
+  glyph: string,
+  glyphColor: string,
+) {
+  for (const p of items) {
     const fade = Math.min(1, p.life / FADE);
     // breathing edge so the area reads as active, not as scenery
     const pulse = 0.5 + 0.5 * Math.sin(time * 3 + p.x);
-    ctx.fillStyle = `rgba(60,180,90,${0.1 * fade})`;
+    ctx.fillStyle = `rgba(${fill},${0.1 * fade})`;
     ctx.beginPath();
-    ctx.arc(p.x, p.y, REPEL_RADIUS, 0, 7);
+    ctx.arc(p.x, p.y, radius, 0, 7);
     ctx.fill();
-    ctx.strokeStyle = `rgba(40,150,70,${(0.4 + 0.25 * pulse) * fade})`;
+    ctx.strokeStyle = `rgba(${edge},${(0.4 + 0.25 * pulse) * fade})`;
     ctx.lineWidth = 2;
     ctx.stroke();
-    // solid colour matters: where the clover falls back to a monochrome glyph
+    // solid colour matters: where the emoji falls back to a monochrome glyph
     // it would otherwise inherit the near-transparent tint above
     ctx.globalAlpha = fade;
-    ctx.fillStyle = "#1f6b33";
+    ctx.fillStyle = glyphColor;
     ctx.font = "16px sans-serif";
-    ctx.fillText("\u2618\uFE0F", p.x, p.y);
+    ctx.fillText(glyph, p.x, p.y);
     ctx.globalAlpha = 1;
   }
+}
+
+export function drawPlaceables(time: number) {
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // cool violet for the lure against the repellent's green, so the two fields
+  // stay tellable apart at a glance when both are on the lawn
+  drawField(
+    attractors,
+    time,
+    ATTRACT_RADIUS,
+    "150,110,230",
+    "120,80,210",
+    "\u{1F48E}",
+    "#5b3aa8",
+  );
+  drawField(
+    repellents,
+    time,
+    REPEL_RADIUS,
+    "60,180,90",
+    "40,150,70",
+    "\u2618\uFE0F",
+    "#1f6b33",
+  );
   ctx.textBaseline = "alphabetic";
 }

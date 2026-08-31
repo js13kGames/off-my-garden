@@ -6,7 +6,7 @@ import { FIELD_BOTTOM } from "./garden";
 const TOOLS = [
   { icon: "\u{1F50A}" }, // 🔊 noise
   { icon: "\u2618\uFE0F" }, // ☘️ repel
-  { icon: "\u{1F308}" }, // 🌈 attract
+  { icon: "\u{1F48E}" }, // 💎 attract
 ];
 
 // Dev stock so tools are testable now; the shop ticket replaces this with

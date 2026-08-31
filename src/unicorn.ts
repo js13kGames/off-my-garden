@@ -1,6 +1,11 @@
 import { ctx, VIEW_W } from "./canvas";
 import { beds, FIELD_BOTTOM, FIELD_TOP, type Flower, trample } from "./garden";
-import { inRepellent, placeables, REPEL_RADIUS } from "./placeable";
+import {
+  inRepellent,
+  nearestAttractor,
+  REPEL_RADIUS,
+  repellents,
+} from "./placeable";
 
 // module-local: an exported const enum would stop erasing under isolatedModules
 const enum UnicornState {
@@ -10,6 +15,7 @@ const enum UnicornState {
   Target,
   Leave,
   Scared,
+  Lured,
 }
 
 export type Unicorn = {
@@ -168,11 +174,36 @@ export function updateUnicorns(dt: number) {
         }
       }
     }
+    // Attraction outranks whatever the unicorn was doing — pulling one off a
+    // flower it already noticed is the whole point of the tool. Re-checked
+    // every frame, so the waypoint tracks the lure and the linger is free:
+    // once there, the unicorn is already standing on its waypoint each tick.
+    if (
+      u.state !== UnicornState.Warn &&
+      u.state !== UnicornState.Leave &&
+      u.state !== UnicornState.Scared
+    ) {
+      const lure = nearestAttractor(u.x, u.y);
+      if (lure) {
+        u.state = UnicornState.Lured;
+        u.target = undefined;
+        setWaypoint(u, lure);
+      } else if (u.state === UnicornState.Lured) {
+        // the lure expired — back to ordinary wandering
+        u.state = UnicornState.Wander;
+        setWaypoint(u, openPoint());
+      }
+    }
     // A repellent dropped on a unicorn's plans invalidates them: a covered
     // flower is abandoned and a covered waypoint is re-picked, so nobody
     // orbits a radius forever chasing something it can no longer reach.
-    // Leaving unicorns keep their edge waypoint — that one means "despawn".
-    if (u.state !== UnicornState.Scared && u.state !== UnicornState.Leave) {
+    // Leaving unicorns keep their edge waypoint — that one means "despawn",
+    // and lured ones keep the gem so the two tools don't fight over a frame.
+    if (
+      u.state !== UnicornState.Scared &&
+      u.state !== UnicornState.Leave &&
+      u.state !== UnicornState.Lured
+    ) {
       if (u.target && inRepellent(u.target.x, u.target.y)) {
         u.target = undefined;
         u.state = UnicornState.Wander;
@@ -216,6 +247,10 @@ export function updateUnicorns(dt: number) {
     if (dist <= step) {
       u.x = u.wx;
       u.y = u.wy;
+      if (u.state === UnicornState.Lured) {
+        // stand at the lure until it expires — no hops spent, no exit
+        continue;
+      }
       if (u.state === UnicornState.Leave) {
         unicorns.splice(i, 1);
         continue;
@@ -247,7 +282,7 @@ export function updateUnicorns(dt: number) {
     // ponytail: no lookahead, so a waypoint right behind a radius is reached
     // the long way round — swap in real path steering if that ever reads badly.
     if (u.state !== UnicornState.Scared) {
-      for (const p of placeables) {
+      for (const p of repellents) {
         const ox = u.x - p.x;
         const oy = u.y - p.y;
         const d = Math.hypot(ox, oy) || 1;

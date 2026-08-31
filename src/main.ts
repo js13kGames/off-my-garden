@@ -18,7 +18,12 @@ import { addCoins, drawHud, updateHud } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
-import { drawPlaceables, placeRepellent, updatePlaceables } from "./placeable";
+import {
+  drawPlaceables,
+  placeAttractor,
+  placeRepellent,
+  updatePlaceables,
+} from "./placeable";
 import {
   drawToolbar,
   setBusy,
@@ -47,8 +52,9 @@ function useTool(tool: number) {
     setBusy(true);
   } else if (tool === 1) {
     placeRepellent(lep.x, lep.y);
+  } else if (tool === 2) {
+    placeAttractor(lep.x, lep.y);
   }
-  // the attractor is consumed with no effect until its own ticket
 }
 
 addEventListener("keydown", (e) => {
