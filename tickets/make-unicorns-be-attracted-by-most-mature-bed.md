@@ -1,0 +1,1 @@
+Unicorns should be attracted by beds with with a plan color as now, but they should favor beds with more mature flowers, to avoid looking for a bed with new flowers and giving chance to lep to have enough time on a distant bed.
