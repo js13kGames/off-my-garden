@@ -327,58 +327,134 @@ export function updateUnicorns(dt: number) {
   }
 }
 
+// The sprite is copied verbatim out of the Inkscape drawing (layout/drawing.svg,
+// "Horses" layer). Path2D parses SVG path data, so redrawing the unicorn there
+// is a copy-paste of the new `d` attributes instead of hand-translated curves —
+// only the precision was trimmed to 1 decimal, about a tenth of a pixel.
+// Coordinates stay in the drawing's own space; the transform in drawUnicorn
+// maps them onto the sprite origin, so nothing had to be re-based by hand.
+const TAIL = new Path2D(
+  "m93.8,185.6c-1.3,-0.2-1.4,-1-1.5,-2.4 1.3,1.7 1.5,-1.6 2.6,-1.7 1.1,0 1.7,0.3 2.1,1.4-1.8,-0.1-1.8,2.8-3.2,2.7z",
+);
+const BODY = new Path2D(
+  "m103.4,184.1c0,1.6-0.3,3-4.3,2-1.9,-0.5-3.1,0-3.7,-0.4-0.5,-0.3-0.4,-0.5-0.3,-1.6 0,-1.5 1.8,-2.7 4.1,-2.7 2.3,0 4.2,1.2 4.2,2.7z",
+);
+const EAR_BACK = new Path2D(
+  "m104.7,175.5c0.8,0 0.1,1.3 0.5,2.6l-1.7,0.2c0,-1.4 0.6,-2.8 1.2,-2.8z",
+);
+const MANE = new Path2D(
+  "m105.1,176.4c0.5,0 0.3,1.2 0.8,1.5 0.3,0.2 0.6,0.2 1.4,-0.6 0.1,0.6-0.6,1.6-0.9,2-1,1.4-3.6,2.8-6.2,3-0.4,0.1-1,0.7-2.3,0.4 0.2,-0.1 0.6,-0.5 0.6,-0.6-1.3,-0.1-0.8,-1.9-0.9,-2.2 1.5,1.7 2.1,-1 0.8,-1.7 1.6,-0.3 1.4,-1.7 3.3,-2.1 1.7,-0.3 3.1,0.3 3.4,0.3z",
+);
+const HEAD = new Path2D(
+  "m107.6,181.4c0.1,1.5-0.6,2-1.4,1.9-0.8,0-1.4,-0.8-1.7,-0.8-0.3,0-0.7,0-1,-0.1-0.2,0-1.1,1.3-2,0.3-1.1,-1 0,-1.4-0.4,-1.9-0.3,-0.6-0.4,-1.3-0.1,-1.8 0.5,-1.1 2.1,-1.5 3.5,-0.8 1,0.4 1.6,1.1 1.9,1.9 0.1,0.4 1.1,0.1 1.2,1.3z",
+);
+const EAR_FRONT = new Path2D(
+  "m103.1,175.3c0.8,0 0.1,1.4 0.5,2.6l-1.7,0.2c0,-1.3 0.6,-2.8 1.2,-2.8z",
+);
+const HORN = new Path2D(
+  "m107.2,175.1c0.3,0.2-0.4,1.5-1.4,2.7-0.6,0.1-1.1,0-1.2,-0.7 0.7,-1 2.3,-2.3 2.6,-2z",
+);
+const MUZZLE = new Path2D(
+  "m107.3,182.6c-0.3,0.6-1,0.7-1.3,0.6-0.4,-0.1-0.2,-0.5 0.3,-1.2 0.6,-0.7 0.7,-0.8 1,-0.6 0.3,0.1 0.2,0.9 0,1.2z",
+);
+
+// The art measures 15.3x13.9 drawing units; 2.2 lands it at ~34x31 px, the
+// footprint the old primitive sprite had, so bed spacing, the trample radius
+// and the thought bubble all still read right.
+const SPRITE_SCALE = 2.2;
+const ANCHOR_X = 99.9;
+// chosen so the hooves land 12 px below the unicorn's logical position
+const ANCHOR_Y = 183.24;
+
+// [hip x, hip y, rest angle, stride phase]. The rest angle is the splay the
+// drawing baked in as a skew — hind legs back, front legs forward — and the
+// swing rides on top of it. Diagonal pairs share a phase, so it reads as a trot.
+const FAR_LEGS: number[][] = [
+  [98.08, 185, 0.25, 3.14],
+  [102.63, 185, -0.25, 0],
+];
+const NEAR_LEGS: number[][] = [
+  [96.12, 185.35, 0.25, 0],
+  [101.08, 185.51, -0.25, 3.14],
+];
+
+function drawLegs(legs: number[][], color: string, phase: number) {
+  for (const [x, y, rest, offset] of legs) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(rest + Math.sin(phase + offset) * 0.3);
+    ctx.fillStyle = color;
+    ctx.fillRect(-0.63, 0, 1.26, 3.8);
+    // hoof: the leg's own bottom slice, so it swings with the leg for free
+    ctx.fillStyle = "#000";
+    ctx.fillRect(-0.63, 3.1, 1.26, 0.7);
+    ctx.restore();
+  }
+}
+
+// swings everything drawn after it about a point in sprite coordinates
+function pivot(x: number, y: number, angle: number) {
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+  ctx.translate(-x, -y);
+}
+
+function dot(x: number, y: number, r: number) {
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, 7);
+  ctx.fill();
+}
+
 function drawUnicorn(u: Unicorn, time: number) {
   const flip = u.wx < u.x ? -1 : 1;
   ctx.save();
   ctx.translate(u.x, u.y);
-  ctx.scale(flip, 1);
-  // legs, animated by distance walked
-  ctx.strokeStyle = "#e8e0f0";
-  ctx.lineWidth = 3.5;
+  ctx.scale(flip * SPRITE_SCALE, SPRITE_SCALE);
+  ctx.translate(-ANCHOR_X, -ANCHOR_Y);
+  ctx.fillStyle = "rgba(0,0,0,.07)";
   ctx.beginPath();
-  for (let l = 0; l < 4; l++) {
-    const ox = -9 + l * 6;
-    const swing = Math.sin(u.legPhase + l * 1.7) * 4;
-    ctx.moveTo(ox, 2);
-    ctx.lineTo(ox + swing, 12);
-  }
-  ctx.stroke();
-  // tail
-  ctx.strokeStyle = "#e77fd0";
-  ctx.lineWidth = 2.5;
-  ctx.beginPath();
-  ctx.moveTo(-14, -4);
-  ctx.quadraticCurveTo(-20, 0 + Math.sin(time * 3) * 2, -18, 6);
-  ctx.stroke();
-  // chunky body
-  ctx.fillStyle = "#fdf6ff";
-  ctx.beginPath();
-  ctx.ellipse(0, -2, 14, 9, 0, 0, 7);
+  ctx.ellipse(98.97, 189.37, 6.77, 2.21, 0, 0, 7);
   ctx.fill();
-  // neck + head
-  ctx.beginPath();
-  ctx.ellipse(12, -13, 6, 5, -0.5, 0, 7);
-  ctx.fill();
-  // horn
+  // the far pair is greyed so the near pair reads as the closer legs
+  drawLegs(FAR_LEGS, "#ccc", u.legPhase);
+  // Tail and head ride on wall time rather than legPhase: a unicorn stopped at
+  // a lure, or frozen mid-telegraph, keeps moving enough to read as alive.
+  ctx.save();
+  pivot(96.9, 182.8, Math.sin(time * 3) * 0.15);
+  ctx.fillStyle = "#00f";
+  ctx.fill(TAIL);
+  ctx.restore();
+  ctx.fillStyle = "#fff";
+  ctx.fill(BODY);
+  // head nods about the neck joint; the mane rides along, and since it sits on
+  // top of the white body the sub-pixel shift can't open a seam
+  ctx.save();
+  pivot(101.5, 182.5, Math.sin(time * 2) * 0.04);
+  ctx.fill(EAR_BACK); // the far ear, behind the mane
+  ctx.fillStyle = "#00f";
+  ctx.fill(MANE);
+  ctx.fillStyle = "#fff";
+  ctx.fill(HEAD);
+  ctx.fill(EAR_FRONT);
   ctx.fillStyle = "#ffd54a";
-  ctx.beginPath();
-  ctx.moveTo(13, -17);
-  ctx.lineTo(15, -16);
-  ctx.lineTo(18, -24);
-  ctx.closePath();
-  ctx.fill();
-  // mane
-  ctx.strokeStyle = "#e77fd0";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(8, -16);
-  ctx.quadraticCurveTo(2, -14, 2, -7);
-  ctx.stroke();
-  // eye
-  ctx.fillStyle = "#222";
-  ctx.beginPath();
-  ctx.arc(14, -14, 1.2, 0, 7);
-  ctx.fill();
+  ctx.fill(HORN);
+  ctx.fillStyle = "#f0d5a7";
+  ctx.fill(MUZZLE);
+  ctx.fillStyle = "#000";
+  dot(104.6, 179.89, 0.33); // eye
+  dot(106.64, 181.7, 0.31); // nostril
+  // two grooves across the horn, the drawing's shorthand for its twist
+  ctx.fillStyle = "rgba(0,0,0,.39)";
+  for (const [x, y, rx, ry] of [
+    [105.56, 176.98, 0.66, 0.13],
+    [106.22, 176.22, 0.53, 0.1],
+  ]) {
+    ctx.beginPath();
+    ctx.ellipse(x, y, rx, ry, 0.56, 0, 7);
+    ctx.fill();
+  }
+  ctx.restore();
+  drawLegs(NEAR_LEGS, "#fff", u.legPhase);
   ctx.restore();
 }
 
