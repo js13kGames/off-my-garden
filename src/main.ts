@@ -9,6 +9,7 @@ import {
 } from "./canvas";
 import {
   drawGarden,
+  drawLawn,
   FIELD_BOTTOM,
   FIELD_TOP,
   sellAt,
@@ -118,9 +119,7 @@ start(
     ctx.beginPath();
     ctx.rect(0, 0, VIEW_W, VIEW_H);
     ctx.clip();
-    // lawn
-    ctx.fillStyle = "#7ec850";
-    ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+    drawLawn();
     // HUD and toolbar strips — filled in by later tickets
     ctx.fillStyle = "#1d3557";
     ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);

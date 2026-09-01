@@ -1,8 +1,53 @@
-import { ctx } from "./canvas";
+import { ctx, VIEW_H, VIEW_W } from "./canvas";
 
 // Playfield strips: HUD above, toolbar below — later tickets fill them in.
 export const FIELD_TOP = 40;
 export const FIELD_BOTTOM = 580;
+
+// Grass tufts: three thin blades fanned out from a point, scattered once at
+// startup. Purely decorative — flat green reads as a void, this reads as lawn.
+// Placement is best-candidate sampling: for each tuft, throw a handful of
+// random points and keep whichever lands farthest from the tufts already
+// placed. Uniform random clumps and leaves bald patches; this spreads out on
+// its own, with none of the grid alignment a jittered lattice can betray.
+const TUFT_COUNT = 45;
+const CANDIDATES = 8;
+const TUFTS: { x: number; y: number }[] = [];
+for (let n = 0; n < TUFT_COUNT; n++) {
+  let bestX = 0;
+  let bestY = 0;
+  let bestDist = -1;
+  for (let c = 0; c < CANDIDATES; c++) {
+    const x = Math.random() * VIEW_W;
+    const y = Math.random() * VIEW_H;
+    // distance to the nearest tuft placed so far — Infinity for the first one,
+    // which makes its candidate throw an ordinary uniform pick
+    let dist = Infinity;
+    for (const t of TUFTS) {
+      dist = Math.min(dist, Math.hypot(t.x - x, t.y - y));
+    }
+    if (dist > bestDist) {
+      bestDist = dist;
+      bestX = x;
+      bestY = y;
+    }
+  }
+  TUFTS.push({ x: bestX, y: bestY });
+}
+
+export function drawLawn() {
+  ctx.fillStyle = "#080";
+  ctx.fillRect(0, 0, VIEW_W, VIEW_H);
+  ctx.fillStyle = "rgba(0,160,0,.7)";
+  for (const t of TUFTS) {
+    // i = -1/0/1: left blade leaning out, upright blade, right blade
+    for (let i = -1; i < 2; i++) {
+      ctx.beginPath();
+      ctx.ellipse(t.x + i * 1.8, t.y, 1, 5, i * 0.18, 0, 7);
+      ctx.fill();
+    }
+  }
+}
 
 export type Flower = {
   x: number;
