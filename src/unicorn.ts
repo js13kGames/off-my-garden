@@ -28,6 +28,7 @@ export type Unicorn = {
   hops: number; // wander waypoints left before heading for an exit
   speed: number;
   legPhase: number;
+  nervous: boolean;
   target?: Flower; // noticed flower, set while Notice/Target
 };
 
@@ -38,6 +39,12 @@ const CAP = 3;
 const WARN_TIME = 1.2;
 // The telegraph: pause before committing to a flower is the player's reaction window.
 const NOTICE_TIME = 0.7;
+// Nervous unicorns cut both numbers: faster feet, and a telegraph too short to
+// react to the same way — mood shortens the window, not just the walk.
+const CALM_SPEED = 40;
+const NERVOUS_SPEED = 62;
+const NERVOUS_NOTICE_TIME = 0.25;
+const NERVOUS_CHANCE = 0.35; // the exception the player has to react to, not the norm
 const NOTICE_RADIUS = 70;
 const NOTICE_RATE = 0.4; // chance/second of noticing a flower while wandering
 // Flowers this close to a unicorn's hooves get trampled, in any state — a hit
@@ -147,6 +154,7 @@ export function updateUnicorns(dt: number) {
   if (spawnTimer <= 0 && unicorns.length < CAP) {
     spawnTimer = SPAWN_EVERY;
     const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
+    const nervous = Math.random() < NERVOUS_CHANCE;
     unicorns.push({
       x: s.x,
       y: s.y,
@@ -155,8 +163,9 @@ export function updateUnicorns(dt: number) {
       wx: s.x,
       wy: s.y,
       hops: 3 + ((Math.random() * 4) | 0),
-      speed: 40,
+      speed: nervous ? NERVOUS_SPEED : CALM_SPEED,
       legPhase: 0,
+      nervous,
     });
   }
 
@@ -234,7 +243,7 @@ export function updateUnicorns(dt: number) {
       if (f) {
         u.target = f;
         u.state = UnicornState.Notice;
-        u.timer = NOTICE_TIME;
+        u.timer = u.nervous ? NERVOUS_NOTICE_TIME : NOTICE_TIME;
         continue;
       }
     }
@@ -407,8 +416,11 @@ function dot(x: number, y: number, r: number) {
 
 function drawUnicorn(u: Unicorn, time: number) {
   const flip = u.wx < u.x ? -1 : 1;
+  // a jittery vibration is the readable tell at phone scale — the eye alone
+  // is under a pixel across, so motion has to carry it
+  const tremor = u.nervous ? Math.sin(time * 37 + u.x) * 0.5 : 0;
   ctx.save();
-  ctx.translate(u.x, u.y);
+  ctx.translate(u.x + tremor, u.y);
   ctx.scale(flip * SPRITE_SCALE, SPRITE_SCALE);
   ctx.translate(-ANCHOR_X, -ANCHOR_Y);
   ctx.fillStyle = "rgba(0,0,0,.07)";
@@ -429,7 +441,11 @@ function drawUnicorn(u: Unicorn, time: number) {
   // head nods about the neck joint; the mane rides along, and since it sits on
   // top of the white body the sub-pixel shift can't open a seam
   ctx.save();
-  pivot(101.5, 182.5, Math.sin(time * 2) * 0.04);
+  pivot(
+    101.5,
+    182.5,
+    u.nervous ? Math.sin(time * 9) * 0.1 : Math.sin(time * 2) * 0.04,
+  );
   ctx.fill(EAR_BACK); // the far ear, behind the mane
   ctx.fillStyle = "#00f";
   ctx.fill(MANE);
@@ -441,7 +457,7 @@ function drawUnicorn(u: Unicorn, time: number) {
   ctx.fillStyle = "#f0d5a7";
   ctx.fill(MUZZLE);
   ctx.fillStyle = "#000";
-  dot(104.6, 179.89, 0.33); // eye
+  dot(104.6, 179.89, u.nervous ? 0.45 : 0.33); // eye, wider when nervous
   dot(106.64, 181.7, 0.31); // nostril
   // two grooves across the horn, the drawing's shorthand for its twist
   ctx.fillStyle = "rgba(0,0,0,.39)";
@@ -497,10 +513,13 @@ function drawThoughtBubble(u: Unicorn, time: number) {
 export function drawUnicorns(time: number) {
   for (const u of unicorns) {
     if (u.state === UnicornState.Warn) {
-      // edge warning marker where the unicorn is about to enter
-      const mx = Math.min(Math.max(u.x, 14), VIEW_W - 14);
+      // edge warning marker where the unicorn is about to enter — a nervous
+      // one pulses faster and doubles up, so the tell reads before it even
+      // sets a hoof on the lawn
+      const tremor = u.nervous ? Math.sin(time * 37 + u.x) * 0.5 : 0;
+      const mx = Math.min(Math.max(u.x + tremor, 14), VIEW_W - 14);
       const my = Math.min(Math.max(u.y, FIELD_TOP + 14), FIELD_BOTTOM - 14);
-      const pulse = 0.5 + 0.5 * Math.sin(time * 10);
+      const pulse = 0.5 + 0.5 * Math.sin(time * (u.nervous ? 22 : 10));
       ctx.fillStyle = `rgba(230,57,70,${0.5 + 0.4 * pulse})`;
       ctx.beginPath();
       ctx.arc(mx, my, 9, 0, 7);
@@ -508,7 +527,7 @@ export function drawUnicorns(time: number) {
       ctx.fillStyle = "#fff";
       ctx.font = "bold 12px sans-serif";
       ctx.textAlign = "center";
-      ctx.fillText("!", mx, my + 4);
+      ctx.fillText(u.nervous ? "!!" : "!", mx, my + 4);
       continue;
     }
     drawUnicorn(u, time);
