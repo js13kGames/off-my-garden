@@ -1,5 +1,12 @@
 import { ctx, VIEW_W } from "./canvas";
-import { beds, FIELD_BOTTOM, FIELD_TOP, type Flower, trample } from "./garden";
+import {
+  type Bed,
+  beds,
+  FIELD_BOTTOM,
+  FIELD_TOP,
+  type Flower,
+  trample,
+} from "./garden";
 import {
   inRepellent,
   nearestAttractor,
@@ -30,6 +37,7 @@ export type Unicorn = {
   legPhase: number;
   nervous: boolean;
   target?: Flower; // noticed flower, set while Notice/Target
+  spree: number; // flowers left to stump in the bed it committed to
 };
 
 export const unicorns: Unicorn[] = [];
@@ -95,11 +103,14 @@ function setWaypoint(u: Unicorn, p: { x: number; y: number }) {
   u.wy = p.y;
 }
 
-// closest visible (past-sprout) flower within notice radius, or none
-function nearestFlower(u: Unicorn) {
+// closest visible (past-sprout) flower within maxDist across the given beds,
+// or none. Shared by ordinary noticing (searches every bed, notice-radius
+// capped) and a rampage re-targeting within the one bed it committed to
+// (searches just that bed, uncapped).
+function nearestFlowerIn(u: Unicorn, list: Bed[], maxDist: number) {
   let best: Flower | undefined;
-  let bestDist = NOTICE_RADIUS;
-  for (const b of beds) {
+  let bestDist = maxDist;
+  for (const b of list) {
     for (const f of b.flowers) {
       // flowers under a repellent stop being noticeable — the tool has to
       // protect the bed it covers, not just bend traffic around it
@@ -131,6 +142,7 @@ export function spawnUnicorn(nervous: boolean) {
     speed: nervous ? NERVOUS_SPEED : CALM_SPEED,
     legPhase: 0,
     nervous,
+    spree: 0,
   });
 }
 
@@ -229,11 +241,15 @@ export function updateUnicorns(dt: number) {
       if (u.timer <= 0) {
         u.state = UnicornState.Target;
         setWaypoint(u, u.target as Flower);
+        // committing to the bed: it'll step flower to flower until this many
+        // are gone, capped at what the bed actually holds
+        const bed = bedAt((u.target as Flower).x, (u.target as Flower).y, 0);
+        u.spree = bed ? bed.flowers.length : 1;
       }
       continue;
     }
     if (u.state === UnicornState.Wander && Math.random() < NOTICE_RATE * dt) {
-      const f = nearestFlower(u);
+      const f = nearestFlowerIn(u, beds, NOTICE_RADIUS);
       if (f) {
         u.target = f;
         u.state = UnicornState.Notice;
@@ -265,8 +281,22 @@ export function updateUnicorns(dt: number) {
       }
       if (u.state === UnicornState.Target) {
         // the target flower already died underfoot via the trample check
-        // above; just resume wandering
+        // above. Stump the rest of the bed before moving on: no fresh
+        // telegraph, just step straight to the next standing flower in it.
+        const bed = bedAt((u.target as Flower).x, (u.target as Flower).y, 0);
         u.target = undefined;
+        u.spree--;
+        const next =
+          bed && u.spree > 0
+            ? nearestFlowerIn(u, [bed], Number.POSITIVE_INFINITY)
+            : undefined;
+        if (next) {
+          u.target = next;
+          setWaypoint(u, next);
+          continue;
+        }
+        // bed's bare (or the rampage ran its course) — resume ordinary
+        // wandering with whatever hops are left, so it can find another bed
         u.state = UnicornState.Wander;
       }
       if (u.hops-- > 0) {
