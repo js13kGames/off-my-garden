@@ -49,13 +49,22 @@ export function drawLawn() {
   }
 }
 
+// module-local: an exported const enum would stop erasing under isolatedModules
+const enum FlowerState {
+  Growing,
+  Trampled,
+  Withering,
+  Gone,
+}
+
 export type Flower = {
   x: number;
   y: number;
   growth: number; // 0..1, 1 = mature
   rate: number; // growth per second
   hue: number;
-  flat: number; // seconds left flattened, 0 = standing
+  state: FlowerState;
+  anim: number; // seconds left in the current death/wither animation
 };
 
 export type Bed = {
@@ -66,10 +75,12 @@ export type Bed = {
   flowers: Flower[];
 };
 
-// Full regrowth takes ~20 s, with per-flower variance so beds don't pulse in sync
+// Full growth takes ~20 s, with per-flower variance so beds don't pulse in sync
 const GROW_TIME = 20;
-// How long a trampled flower stays flattened before it resumes growing
+// How long a trampled flower stays flattened before the slot goes bare
 const FLAT_TIME = 1.2;
+// How long a surviving flower takes to droop away between waves
+const WITHER_TIME = 1.2;
 
 function makeBed(x: number, y: number, hue: number): Bed {
   const w = 96;
@@ -80,10 +91,11 @@ function makeBed(x: number, y: number, hue: number): Bed {
       flowers.push({
         x: x + 20 + c * 28,
         y: y + 20 + r * 28,
-        growth: Math.random() * 0.5,
+        growth: 0,
         rate: (0.8 + Math.random() * 0.4) / GROW_TIME,
         hue,
-        flat: 0,
+        state: FlowerState.Growing,
+        anim: 0,
       });
     }
   }
@@ -99,12 +111,17 @@ export const beds: Bed[] = [
   makeBed(236, 462, 275), // E — violets
 ];
 
-// Flattens a flower back to a bare sprout; it regrows on the normal timer
-// once the flatten animation (below) finishes.
+// Flattens a flower; it stays gone for the rest of the wave once the
+// flatten animation (below) finishes.
 export function trample(f: Flower) {
-  f.growth = 0;
-  f.flat = FLAT_TIME;
+  f.state = FlowerState.Trampled;
+  f.anim = FLAT_TIME;
 }
+
+// Visible, alive, and hittable — what unicorns notice/trample and what the
+// player can sell. A flower under this stays a no-op for both.
+export const standing = (f: Flower) =>
+  f.state === FlowerState.Growing && f.growth >= 0.33;
 
 // Fingers are fat and flowers sit 28 px apart — half that spacing is a
 // generous target that still can't hit two flowers at once.
@@ -135,7 +152,7 @@ export function sellAt(
       continue;
     }
     for (const f of bed.flowers) {
-      if (f.growth < 1) {
+      if (f.state !== FlowerState.Growing || f.growth < 1) {
         continue;
       }
       const d = Math.hypot(f.x - x, f.y - y);
@@ -146,18 +163,33 @@ export function sellAt(
     }
   }
   if (best) {
-    best.growth = 0;
+    best.state = FlowerState.Gone;
   }
   return best;
 }
 
-// Between waves every flower starts over at stage 0, survivors and all —
-// waves are self-contained rounds, not a garden that just keeps aging.
+// At each wave start every flower starts over at stage 0, survivors and all —
+// waves are self-contained growing seasons, not a garden that just keeps aging.
 export function resetGarden() {
   for (const bed of beds) {
     for (const f of bed.flowers) {
       f.growth = 0;
-      f.flat = 0;
+      f.state = FlowerState.Growing;
+      f.anim = 0;
+    }
+  }
+}
+
+// Before the next wave's reset, send surviving flowers into a droop-and-fade
+// so the stage-0 snap reads as an event instead of a jump cut. Already-dead
+// flowers (trampled/sold/withered) are left alone.
+export function witherGarden() {
+  for (const bed of beds) {
+    for (const f of bed.flowers) {
+      if (f.state === FlowerState.Growing && f.growth > 0) {
+        f.state = FlowerState.Withering;
+        f.anim = WITHER_TIME;
+      }
     }
   }
 }
@@ -165,37 +197,52 @@ export function resetGarden() {
 export function updateGarden(dt: number) {
   for (const bed of beds) {
     for (const f of bed.flowers) {
-      if (f.flat > 0) {
-        f.flat = Math.max(0, f.flat - dt);
+      if (f.state === FlowerState.Growing) {
+        f.growth = Math.min(1, f.growth + f.rate * dt);
         continue;
       }
-      f.growth = Math.min(1, f.growth + f.rate * dt);
+      if (f.state === FlowerState.Gone) {
+        continue;
+      }
+      f.anim -= dt;
+      if (f.anim <= 0) {
+        f.state = FlowerState.Gone;
+      }
     }
   }
 }
 
 function drawFlower(f: Flower, time: number) {
+  if (f.state === FlowerState.Gone) {
+    return; // bare soil — trampled/sold/withered stays empty for the wave
+  }
   const g = f.growth;
   ctx.save();
   ctx.translate(f.x, f.y);
-  if (f.flat > 0) {
+  if (f.state === FlowerState.Trampled) {
     // trample feedback: a fading dust ring plus the crushed petals squashed
-    // flat against the soil, both shrinking away as regrowth takes over
-    const k = f.flat / FLAT_TIME;
+    // flat against the soil, both shrinking away as the slot goes bare
+    const k = f.anim / FLAT_TIME;
     ctx.strokeStyle = `rgba(180,150,110,${0.5 * k})`;
     ctx.lineWidth = 2;
     ctx.beginPath();
     ctx.arc(0, 2, 6 + 10 * (1 - k), 0, 7);
     ctx.stroke();
-    ctx.save();
     ctx.scale(1.3, 0.25);
     ctx.fillStyle = `hsla(${f.hue},80%,45%,${k})`;
     ctx.beginPath();
     ctx.arc(0, 2, 5, 0, 7);
     ctx.fill();
     ctx.restore();
+    return; // no stem underneath — trampled flowers don't regrow mid-wave
   }
-  if (g >= 1) {
+  if (f.state === FlowerState.Withering) {
+    // survivor dying back between waves: droop sideways and fade together
+    const k = f.anim / WITHER_TIME;
+    ctx.globalAlpha = k;
+    ctx.rotate((1 - k) * 1.2);
+  }
+  if (g >= 1 && f.state === FlowerState.Growing) {
     // mature: subtle pulsing halo instead of a permanent icon
     const pulse = 0.5 + 0.5 * Math.sin(time * 4 + f.x);
     ctx.fillStyle = `hsla(${f.hue},90%,70%,${0.15 + 0.15 * pulse})`;

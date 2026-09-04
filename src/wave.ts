@@ -1,4 +1,4 @@
-import { resetGarden } from "./garden";
+import { resetGarden, witherGarden } from "./garden";
 import { spawnUnicorn, unicorns } from "./unicorn";
 
 // Difficulty escalates by formula rather than a per-wave table — one place to
@@ -34,6 +34,8 @@ export function updateWaves(dt: number) {
       wave++;
       spawned = 0;
       spawnTimer = spawnEveryFor(wave);
+      // new growing season: every flower starts over at stage 0
+      resetGarden();
     }
     return;
   }
@@ -45,9 +47,9 @@ export function updateWaves(dt: number) {
       spawned++;
     }
   } else if (unicorns.length === 0) {
-    // every unicorn this wave spawned is gone — survivors don't carry over
-    // because there are none left standing
-    resetGarden();
+    // every unicorn this wave spawned is gone — send survivors into their
+    // droop-and-fade so the next reset doesn't just snap them away
+    witherGarden();
     intermission = INTERMISSION_TIME;
   }
 }

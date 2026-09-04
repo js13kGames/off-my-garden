@@ -5,6 +5,7 @@ import {
   FIELD_BOTTOM,
   FIELD_TOP,
   type Flower,
+  standing,
   trample,
 } from "./garden";
 import {
@@ -114,7 +115,7 @@ function nearestFlowerIn(u: Unicorn, list: Bed[], maxDist: number) {
     for (const f of b.flowers) {
       // flowers under a repellent stop being noticeable — the tool has to
       // protect the bed it covers, not just bend traffic around it
-      if (f.growth < 0.33 || inRepellent(f.x, f.y)) {
+      if (!standing(f) || inRepellent(f.x, f.y)) {
         continue;
       }
       const d = Math.hypot(f.x - u.x, f.y - u.y);
@@ -181,10 +182,7 @@ export function updateUnicorns(dt: number) {
     // unicorn stands on gets trampled, in every state.
     for (const b of beds) {
       for (const f of b.flowers) {
-        if (
-          f.growth >= 0.33 &&
-          Math.hypot(f.x - u.x, f.y - u.y) < TRAMPLE_RADIUS
-        ) {
+        if (standing(f) && Math.hypot(f.x - u.x, f.y - u.y) < TRAMPLE_RADIUS) {
           trample(f);
         }
       }
