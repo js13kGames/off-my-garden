@@ -151,6 +151,17 @@ export function sellAt(
   return best;
 }
 
+// Between waves every flower starts over at stage 0, survivors and all —
+// waves are self-contained rounds, not a garden that just keeps aging.
+export function resetGarden() {
+  for (const bed of beds) {
+    for (const f of bed.flowers) {
+      f.growth = 0;
+      f.flat = 0;
+    }
+  }
+}
+
 export function updateGarden(dt: number) {
   for (const bed of beds) {
     for (const f of bed.flowers) {

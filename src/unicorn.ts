@@ -34,8 +34,6 @@ export type Unicorn = {
 
 export const unicorns: Unicorn[] = [];
 
-// Early game: only a few unicorns at once (waves escalate this later)
-const CAP = 3;
 const WARN_TIME = 1.2;
 // The telegraph: pause before committing to a flower is the player's reaction window.
 const NOTICE_TIME = 0.7;
@@ -44,7 +42,6 @@ const NOTICE_TIME = 0.7;
 const CALM_SPEED = 40;
 const NERVOUS_SPEED = 62;
 const NERVOUS_NOTICE_TIME = 0.25;
-const NERVOUS_CHANCE = 0.35; // the exception the player has to react to, not the norm
 const NOTICE_RADIUS = 70;
 const NOTICE_RATE = 0.4; // chance/second of noticing a flower while wandering
 // Flowers this close to a unicorn's hooves get trampled, in any state — a hit
@@ -54,8 +51,6 @@ const TRAMPLE_RADIUS = 9;
 // Unicorns start turning just before a repellent's edge, so they read as
 // avoiding the area rather than bouncing off it
 const AVOID_MARGIN = 6;
-const SPAWN_EVERY = 4;
-let spawnTimer = 2;
 
 // 8 entry points just outside the playfield edges
 const SPAWNS = [
@@ -121,6 +116,24 @@ function nearestFlower(u: Unicorn) {
   return best;
 }
 
+// The wave manager decides when and how nervous — this just picks an entry
+// point and rolls a fresh unicorn onto it.
+export function spawnUnicorn(nervous: boolean) {
+  const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
+  unicorns.push({
+    x: s.x,
+    y: s.y,
+    state: UnicornState.Warn,
+    timer: WARN_TIME,
+    wx: s.x,
+    wy: s.y,
+    hops: 3 + ((Math.random() * 4) | 0),
+    speed: nervous ? NERVOUS_SPEED : CALM_SPEED,
+    legPhase: 0,
+    nervous,
+  });
+}
+
 export function scareUnicorns(originX: number, originY: number) {
   for (const u of unicorns) {
     if (u.state === UnicornState.Scared) {
@@ -150,25 +163,6 @@ export function scareUnicorns(originX: number, originY: number) {
 }
 
 export function updateUnicorns(dt: number) {
-  spawnTimer -= dt;
-  if (spawnTimer <= 0 && unicorns.length < CAP) {
-    spawnTimer = SPAWN_EVERY;
-    const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
-    const nervous = Math.random() < NERVOUS_CHANCE;
-    unicorns.push({
-      x: s.x,
-      y: s.y,
-      state: UnicornState.Warn,
-      timer: WARN_TIME,
-      wx: s.x,
-      wy: s.y,
-      hops: 3 + ((Math.random() * 4) | 0),
-      speed: nervous ? NERVOUS_SPEED : CALM_SPEED,
-      legPhase: 0,
-      nervous,
-    });
-  }
-
   for (let i = unicorns.length - 1; i >= 0; i--) {
     const u = unicorns[i];
     // Damage follows the hooves, not just the noticed target: any flower a

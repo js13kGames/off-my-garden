@@ -1,4 +1,4 @@
-import { ctx } from "./canvas";
+import { ctx, VIEW_W } from "./canvas";
 
 // Coins are the POC's score — nothing to spend them on yet.
 let coins = 0;
@@ -22,11 +22,15 @@ export function updateHud(dt: number) {
   }
 }
 
-export function drawHud() {
+export function drawHud(wave: number) {
   ctx.textAlign = "left";
   ctx.font = "bold 16px sans-serif";
   ctx.fillStyle = "#ffd54a";
   ctx.fillText(`\u{1F4B0} ${coins}`, 10, 26);
+
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#fff";
+  ctx.fillText(`Wave ${wave}`, VIEW_W - 10, 26);
 
   ctx.textAlign = "center";
   ctx.font = "bold 13px sans-serif";

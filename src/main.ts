@@ -33,6 +33,7 @@ import {
   toolbarTap,
 } from "./toolbar";
 import { drawUnicorns, scareUnicorns, updateUnicorns } from "./unicorn";
+import { updateWaves, wave } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
@@ -97,6 +98,7 @@ start(
     time += dt;
     updateGarden(dt);
     updateLep(dt);
+    updateWaves(dt);
     updateUnicorns(dt);
     updateNoise(dt);
     updatePlaceables(dt);
@@ -129,7 +131,7 @@ start(
     drawUnicorns(time);
     drawNoise();
     drawLep(time);
-    drawHud();
+    drawHud(wave);
     drawToolbar();
     ctx.restore();
   },
