@@ -4,12 +4,19 @@ import { FIELD_BOTTOM, FIELD_TOP } from "./garden";
 // He is a character, not a cursor: crossing the whole garden takes ~5 s.
 const SPEED = 110;
 
+// Free, always-on counterplay for round one when no tool is bought yet — but
+// weaker than a repellent, so it stays a detour rather than a wall.
+export const LEP_RADIUS = 32;
+
 export const lep = {
   x: 180,
   y: 400,
   tx: 180,
   ty: 400,
   moving: false,
+  // set each frame by updateUnicorns; drives the ring below so it only shows
+  // up on the frames it's actually doing something
+  blocking: false,
 };
 
 export function sendLepTo(x: number, y: number) {
@@ -37,6 +44,15 @@ export function updateLep(dt: number) {
 }
 
 export function drawLep(time: number) {
+  if (lep.blocking) {
+    // the deflection ring: shown only while it's bending a path, so it reads
+    // as feedback rather than a permanent radius like the placeables have
+    ctx.strokeStyle = "rgba(255,255,255,.15)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    ctx.arc(lep.x, lep.y, LEP_RADIUS, 0, 7);
+    ctx.stroke();
+  }
   if (lep.moving) {
     // destination marker
     ctx.strokeStyle = "rgba(255,255,255,.6)";
