@@ -1,6 +1,6 @@
-import { ctx, VIEW_W } from "./canvas";
+import { ctx } from "./canvas";
 
-// Coins earned by selling flowers; spent on tool stock in the between-wave shop.
+// Coins earned by selling flowers; spent on tools the moment they're used.
 let coins = 0;
 const COIN_VALUE = 5;
 
@@ -18,7 +18,7 @@ export function getCoins(): number {
 }
 
 export function spendCoins(n: number) {
-  coins -= n;
+  coins = Math.max(0, coins - n);
 }
 
 export function updateHud(dt: number) {
@@ -30,15 +30,11 @@ export function updateHud(dt: number) {
   }
 }
 
-export function drawHud(wave: number) {
+export function drawHud() {
   ctx.textAlign = "left";
   ctx.font = "bold 16px sans-serif";
   ctx.fillStyle = "#ffd54a";
   ctx.fillText(`\u{1F4B0} ${coins}`, 10, 26);
-
-  ctx.textAlign = "right";
-  ctx.fillStyle = "#fff";
-  ctx.fillText(`Wave ${wave}`, VIEW_W - 10, 26);
 
   ctx.textAlign = "center";
   ctx.font = "bold 13px sans-serif";

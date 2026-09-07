@@ -14,8 +14,8 @@ export const REPEL_RADIUS = 46;
 // already walking at, so its pull is far wider than the repellent's push.
 // The drawn circle is exactly this radius — no invisible extra reach.
 const ATTRACT_RADIUS = 100;
-// Placeables expire so the garden doesn't stay fenced off; stock caps how many
-// can ever exist, expiry keeps the field from filling up.
+// Placeables expire so the garden doesn't stay fenced off with permanent
+// repellents/attractors bought over a long run.
 const LIFE = 12;
 // Alpha ramps down over the last seconds so the player sees it about to go
 const FADE = 2;

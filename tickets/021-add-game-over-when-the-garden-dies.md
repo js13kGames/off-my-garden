@@ -10,4 +10,4 @@ The garden is the run: when the last flower goes, the game ends immediately.
 ## Acceptance criteria
 
 - Emptying the garden triggers the game-over overlay instantly with the score.
-- Restarting resets coins, stock, wave counter, and beds cleanly.
+- Restarting resets coins, wave counter, and beds cleanly.

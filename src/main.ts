@@ -26,29 +26,26 @@ import {
   updatePlaceables,
 } from "./placeable";
 import {
-  drawShop,
   drawToolbar,
   setBusy,
-  shopTap,
   takePending,
   toolbarKey,
   toolbarTap,
 } from "./toolbar";
 import { drawUnicorns, scareUnicorns, updateUnicorns } from "./unicorn";
-import { updateWaves, wave } from "./wave";
+import { updateWaves } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
   Idle,
   Playing,
-  Shop,
 }
 let state: State = State.Idle;
 let time = 0;
 
 // Tools all work the same way: the button fires them where the leprechaun
 // stands, so placing him is the whole decision. The toolbar has already spent
-// the stock by the time this runs.
+// the coins by the time this runs.
 function useTool(tool: number) {
   lep.moving = false; // he stops where he is to use it
   if (tool === 0) {
@@ -76,12 +73,6 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   const p = toLogical(e);
-  if (state === State.Shop) {
-    if (shopTap(p.x, p.y)) {
-      state = State.Playing;
-    }
-    return;
-  }
   const tool = toolbarTap(p.x, p.y);
   if (tool >= 0) {
     useTool(tool);
@@ -107,9 +98,7 @@ start(
     time += dt;
     updateGarden(dt);
     updateLep(dt);
-    if (updateWaves(dt)) {
-      state = State.Shop;
-    }
+    updateWaves(dt);
     updateUnicorns(dt);
     updateNoise(dt);
     updatePlaceables(dt);
@@ -142,11 +131,8 @@ start(
     drawUnicorns(time);
     drawNoise();
     drawLep(time);
-    drawHud(wave);
+    drawHud();
     drawToolbar();
-    if (state === State.Shop) {
-      drawShop(wave);
-    }
     ctx.restore();
   },
 );

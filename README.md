@@ -17,9 +17,9 @@ traffic around them.
    thought bubble — then walk over and trample it.
 3. The player taps the ground to send the leprechaun places, taps mature flowers to
    sell them for coins, and uses three tools to redirect unicorns.
-4. Waves are discrete rounds that escalate: bigger rosters, more nervous
-   unicorns, less reaction time. When a wave's unicorns are all gone, flowers
-   reset and a shop opens where coins buy tool stock for the next wave.
+4. Waves escalate continuously: bigger rosters, more nervous unicorns, less
+   reaction time. When a wave's unicorns are all gone, flowers wither and
+   reset and the next wave starts right away — no menu, no pause.
 
 ## Screen & layout
 
@@ -27,7 +27,7 @@ traffic around them.
 - **Fixed logical viewport** (360×640) scaled to fit any physical screen,
   letterboxed on desktop. Game geometry is identical everywhere.
 - **One garden = one screen. No camera, no scrolling, no minimap.**
-- Layout: thin top HUD (coins, wave) → garden playfield (~85% of screen) → thin
+- Layout: thin top HUD (coins) → garden playfield (~85% of screen) → thin
   bottom toolbar. No permanent explanation panels.
 - **Five asymmetric flower beds** (A–E) with broad open walkways between them —
   the walkways are where the game happens; unicorns should spend most of their
@@ -36,7 +36,7 @@ traffic around them.
 
 ```
 ┌──────────────────────────────┐
-│ 💰 125              Wave 3   │  ← compact HUD
+│ 💰 125                       │  ← compact HUD
 ├──────────────────────────────┤
 │   [A]              [B]       │
 │                              │
@@ -44,7 +44,7 @@ traffic around them.
 │      ☘️        🧙            │
 │   [D]              [E]  🦄❗ │
 ├──────────────────────────────┤
-│  🔊       ☘️       🌈        │  ← tools: noise / repel / attract
+│ 🔊 10💰  ☘️ 15💰  🌈 20💰    │  ← tools, priced — tap to buy & use
 └──────────────────────────────┘
 ```
 
@@ -73,9 +73,9 @@ traffic around them.
   cursor). Positioning is a real decision.
 
 ### Tools (bottom toolbar)
-Select by tap, or keys `1`/`2`/`3`. Selected tool gets a simple highlight. Each
-tool has a stock count; using a tool consumes one unit, and stock is bought
-between waves in the shop. Zero-stock tools are grayed out.
+Each button shows its price. Tap it (or press `1`/`2`/`3`) to buy and fire it
+immediately, spending straight from the coin bank — no stock, no shop.
+Unaffordable tools are grayed out.
 - 🔊 **Noisemaker** — select, tap a location: the leprechaun runs there and, when
   close enough, scares nearby unicorns away. Requires proximity.
 - ☘️ **Repellent** — placed on the ground; unicorns avoid its visible radius.
@@ -88,8 +88,8 @@ between waves in the shop. Zero-stock tools are grayed out.
 
 ## Game structure
 
-A wave ends when every unicorn it spawned has left the field; then flowers reset
-and the shop opens before the next wave begins. There is **no win condition** —
+A wave ends when every unicorn it spawned has left the field; then flowers
+wither, reset, and the next wave begins right away. There is **no win condition** —
 waves escalate forever. The lose condition is the garden dying: when the last
 flower is gone the run ends immediately, scored by waves survived and coins
 collected.

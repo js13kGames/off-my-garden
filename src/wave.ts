@@ -21,14 +21,15 @@ function nervousChanceFor(wave: number) {
 // goal, a rainbow-power meter with celebration + best-count, or a timed
 // session scored at the end.
 
-export let wave = 1;
+let wave = 1;
 let spawned = 0;
 let spawnTimer = 1; // small delay before the first unicorn of a run
 const INTERMISSION_TIME = 2.5;
 let intermission = 0;
 
-/** Returns true on the frame the shop should open: flowers just reset, roster hasn't started. */
-export function updateWaves(dt: number): boolean {
+/** Advances the wave clock: spawns the roster, and once it's gone, withers
+ * and resets the garden before starting the next wave right away. */
+export function updateWaves(dt: number) {
   if (intermission > 0) {
     intermission -= dt;
     if (intermission <= 0) {
@@ -37,9 +38,8 @@ export function updateWaves(dt: number): boolean {
       spawnTimer = spawnEveryFor(wave);
       // new growing season: every flower starts over at stage 0
       resetGarden();
-      return true;
     }
-    return false;
+    return;
   }
   // Nothing left to raid: send the roster home instead of letting it wander
   // an empty lawn, and stop spawning more of it.
@@ -60,5 +60,4 @@ export function updateWaves(dt: number): boolean {
     witherGarden();
     intermission = INTERMISSION_TIME;
   }
-  return false;
 }
