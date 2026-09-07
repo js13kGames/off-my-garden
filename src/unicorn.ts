@@ -93,6 +93,21 @@ function openPoint() {
   return { x: 180, y: 380 }; // central walkway fallback
 }
 
+// closest of the 8 entry points to a unicorn — used when it's sent off the
+// field outright (garden's bare) rather than picking one to wander toward
+function nearestSpawn(u: Unicorn) {
+  let best = SPAWNS[0];
+  let bestDist = Number.POSITIVE_INFINITY;
+  for (const s of SPAWNS) {
+    const d = Math.hypot(s.x - u.x, s.y - u.y);
+    if (d < bestDist) {
+      bestDist = d;
+      best = s;
+    }
+  }
+  return best;
+}
+
 // which bed a flower belongs to, by membership rather than geometry
 function bedOf(f: Flower) {
   return beds.find((b) => b.includes(f));
@@ -172,6 +187,20 @@ export function scareUnicorns(originX: number, originY: number) {
     u.state = UnicornState.Scared;
     setWaypoint(u, { x: fleeX, y: fleeY });
     u.target = undefined;
+  }
+}
+
+// Called every frame while the garden is bare (see wave.ts) — the state
+// guard is load-bearing, not just tidy: re-rolling the exit waypoint each
+// tick would leave a unicorn dithering between edges instead of arriving.
+export function leaveUnicorns() {
+  for (const u of unicorns) {
+    if (u.state === UnicornState.Leave || u.state === UnicornState.Scared) {
+      continue;
+    }
+    u.state = UnicornState.Leave;
+    u.target = undefined;
+    setWaypoint(u, nearestSpawn(u));
   }
 }
 

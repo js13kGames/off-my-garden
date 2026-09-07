@@ -1,5 +1,5 @@
-import { resetGarden, witherGarden } from "./garden";
-import { spawnUnicorn, unicorns } from "./unicorn";
+import { gardenBare, resetGarden, witherGarden } from "./garden";
+import { leaveUnicorns, spawnUnicorn, unicorns } from "./unicorn";
 
 // Difficulty escalates by formula rather than a per-wave table — one place to
 // tune, and it keeps stepping up indefinitely instead of running out of rows.
@@ -41,7 +41,13 @@ export function updateWaves(dt: number): boolean {
     }
     return false;
   }
-  if (spawned < rosterFor(wave)) {
+  // Nothing left to raid: send the roster home instead of letting it wander
+  // an empty lawn, and stop spawning more of it.
+  const bare = gardenBare();
+  if (bare) {
+    leaveUnicorns();
+  }
+  if (!bare && spawned < rosterFor(wave)) {
     spawnTimer -= dt;
     if (spawnTimer <= 0 && unicorns.length < capFor(wave)) {
       spawnTimer = spawnEveryFor(wave);

@@ -132,6 +132,12 @@ export function trample(f: Flower) {
 export const standing = (f: Flower) =>
   f.state === FlowerState.Growing && f.growth >= 0.33;
 
+// Trampled/sold flowers never come back mid-wave — only resetGarden() does
+// that, at the next wave. So no Growing flower left means the wave has
+// nothing more to lose, even the sprouts too young for `standing`.
+export const gardenBare = () =>
+  !beds.some((b) => b.some((f) => f.state === FlowerState.Growing));
+
 // Fingers are fat and flowers sit ~23 px apart in a cluster — half that
 // spacing is a generous target that still can't hit two flowers at once.
 const SELL_RADIUS = 10;
