@@ -27,7 +27,8 @@ let spawnTimer = 1; // small delay before the first unicorn of a run
 const INTERMISSION_TIME = 2.5;
 let intermission = 0;
 
-export function updateWaves(dt: number) {
+/** Returns true on the frame the shop should open: flowers just reset, roster hasn't started. */
+export function updateWaves(dt: number): boolean {
   if (intermission > 0) {
     intermission -= dt;
     if (intermission <= 0) {
@@ -36,8 +37,9 @@ export function updateWaves(dt: number) {
       spawnTimer = spawnEveryFor(wave);
       // new growing season: every flower starts over at stage 0
       resetGarden();
+      return true;
     }
-    return;
+    return false;
   }
   if (spawned < rosterFor(wave)) {
     spawnTimer -= dt;
@@ -52,4 +54,5 @@ export function updateWaves(dt: number) {
     witherGarden();
     intermission = INTERMISSION_TIME;
   }
+  return false;
 }

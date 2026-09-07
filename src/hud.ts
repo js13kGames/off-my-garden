@@ -1,6 +1,6 @@
 import { ctx, VIEW_W } from "./canvas";
 
-// Coins are the POC's score — nothing to spend them on yet.
+// Coins earned by selling flowers; spent on tool stock in the between-wave shop.
 let coins = 0;
 const COIN_VALUE = 5;
 
@@ -11,6 +11,14 @@ const pops: Popup[] = [];
 export function addCoins(x: number, y: number) {
   coins += COIN_VALUE;
   pops.push({ x, y, t: POP_TIME });
+}
+
+export function getCoins(): number {
+  return coins;
+}
+
+export function spendCoins(n: number) {
+  coins -= n;
 }
 
 export function updateHud(dt: number) {

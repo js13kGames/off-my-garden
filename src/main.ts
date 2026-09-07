@@ -26,8 +26,10 @@ import {
   updatePlaceables,
 } from "./placeable";
 import {
+  drawShop,
   drawToolbar,
   setBusy,
+  shopTap,
   takePending,
   toolbarKey,
   toolbarTap,
@@ -39,6 +41,7 @@ import { updateWaves, wave } from "./wave";
 const enum State {
   Idle,
   Playing,
+  Shop,
 }
 let state: State = State.Idle;
 let time = 0;
@@ -63,7 +66,7 @@ addEventListener("keydown", (e) => {
   if (e.code === "Space" && state === State.Idle) {
     state = State.Playing;
   }
-  if (e.key >= "1" && e.key <= "3") {
+  if (e.key >= "1" && e.key <= "3" && state === State.Playing) {
     toolbarKey(Number(e.key));
   }
 });
@@ -73,6 +76,12 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   const p = toLogical(e);
+  if (state === State.Shop) {
+    if (shopTap(p.x, p.y)) {
+      state = State.Playing;
+    }
+    return;
+  }
   const tool = toolbarTap(p.x, p.y);
   if (tool >= 0) {
     useTool(tool);
@@ -98,7 +107,9 @@ start(
     time += dt;
     updateGarden(dt);
     updateLep(dt);
-    updateWaves(dt);
+    if (updateWaves(dt)) {
+      state = State.Shop;
+    }
     updateUnicorns(dt);
     updateNoise(dt);
     updatePlaceables(dt);
@@ -133,6 +144,9 @@ start(
     drawLep(time);
     drawHud(wave);
     drawToolbar();
+    if (state === State.Shop) {
+      drawShop(wave);
+    }
     ctx.restore();
   },
 );
