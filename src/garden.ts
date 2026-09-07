@@ -4,36 +4,43 @@ import { ctx, VIEW_H, VIEW_W } from "./canvas";
 export const FIELD_TOP = 40;
 export const FIELD_BOTTOM = 580;
 
+// Best-candidate sampling: for each of `count` points, throw a handful of
+// random candidates from `pick` and keep whichever lands farthest from the
+// points already placed. Uniform random clumps and leaves bald patches; this
+// spreads out on its own, with none of the grid alignment a jittered lattice
+// can betray. Shared by the grass tufts (spread across the whole lawn) and
+// flower clusters (spread within a small disc around a centre).
+const CANDIDATES = 8;
+function scatter(count: number, pick: () => { x: number; y: number }) {
+  const points: { x: number; y: number }[] = [];
+  for (let n = 0; n < count; n++) {
+    let best = { x: 0, y: 0 };
+    let bestDist = -1;
+    for (let c = 0; c < CANDIDATES; c++) {
+      const p = pick();
+      // distance to the nearest point placed so far — Infinity for the first
+      // one, which makes its candidate throw an ordinary uniform pick
+      let dist = Infinity;
+      for (const t of points) {
+        dist = Math.min(dist, Math.hypot(t.x - p.x, t.y - p.y));
+      }
+      if (dist > bestDist) {
+        bestDist = dist;
+        best = p;
+      }
+    }
+    points.push(best);
+  }
+  return points;
+}
+
 // Grass tufts: three thin blades fanned out from a point, scattered once at
 // startup. Purely decorative — flat green reads as a void, this reads as lawn.
-// Placement is best-candidate sampling: for each tuft, throw a handful of
-// random points and keep whichever lands farthest from the tufts already
-// placed. Uniform random clumps and leaves bald patches; this spreads out on
-// its own, with none of the grid alignment a jittered lattice can betray.
 const TUFT_COUNT = 45;
-const CANDIDATES = 8;
-const TUFTS: { x: number; y: number }[] = [];
-for (let n = 0; n < TUFT_COUNT; n++) {
-  let bestX = 0;
-  let bestY = 0;
-  let bestDist = -1;
-  for (let c = 0; c < CANDIDATES; c++) {
-    const x = Math.random() * VIEW_W;
-    const y = Math.random() * VIEW_H;
-    // distance to the nearest tuft placed so far — Infinity for the first one,
-    // which makes its candidate throw an ordinary uniform pick
-    let dist = Infinity;
-    for (const t of TUFTS) {
-      dist = Math.min(dist, Math.hypot(t.x - x, t.y - y));
-    }
-    if (dist > bestDist) {
-      bestDist = dist;
-      bestX = x;
-      bestY = y;
-    }
-  }
-  TUFTS.push({ x: bestX, y: bestY });
-}
+const TUFTS = scatter(TUFT_COUNT, () => ({
+  x: Math.random() * VIEW_W,
+  y: Math.random() * VIEW_H,
+}));
 
 export function drawLawn() {
   ctx.fillStyle = "#080";
@@ -67,13 +74,10 @@ export type Flower = {
   anim: number; // seconds left in the current death/wither animation
 };
 
-export type Bed = {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  flowers: Flower[];
-};
+// A bed is just a group of flowers now — no rect, no soil, no collision. It
+// exists so a rampaging unicorn can commit to "this clump" and the shop can
+// grow bed sizes over time, not because the garden has any tile grid.
+export type Bed = Flower[];
 
 // Full growth takes ~20 s, with per-flower variance so beds don't pulse in sync
 const GROW_TIME = 20;
@@ -82,33 +86,38 @@ const FLAT_TIME = 1.2;
 // How long a surviving flower takes to droop away between waves
 const WITHER_TIME = 1.2;
 
-function makeBed(x: number, y: number, hue: number): Bed {
-  const w = 96;
-  const h = 66;
-  const flowers: Flower[] = [];
-  for (let r = 0; r < 2; r++) {
-    for (let c = 0; c < 3; c++) {
-      flowers.push({
-        x: x + 20 + c * 28,
-        y: y + 20 + r * 28,
-        growth: 0,
-        rate: (0.8 + Math.random() * 0.4) / GROW_TIME,
-        hue,
-        state: FlowerState.Growing,
-        anim: 0,
-      });
-    }
-  }
-  return { x, y, w, h, flowers };
+const FLOWERS_PER_BED = 7;
+// How far a bed's flowers scatter from its centre — small enough to read as
+// one clump, big enough that petals don't all stack on the same point
+const BED_RADIUS = 36;
+
+function makeBed(cx: number, cy: number, hue: number): Bed {
+  const flowers = scatter(FLOWERS_PER_BED, () => {
+    const a = Math.random() * Math.PI * 2;
+    // sqrt-scaled radius: uniform density across the disc instead of
+    // clumping toward the centre
+    const r = BED_RADIUS * Math.sqrt(Math.random());
+    return { x: cx + Math.cos(a) * r, y: cy + Math.sin(a) * r };
+  }).map((p) => ({
+    x: p.x,
+    y: p.y,
+    growth: 0,
+    rate: (0.8 + Math.random() * 0.4) / GROW_TIME,
+    hue,
+    state: FlowerState.Growing,
+    anim: 0,
+  }));
+  // no soil rect to layer on, so draw order has to fake the depth: lower
+  // flowers (larger y) drawn last so they sit in front of ones behind them
+  flowers.sort((a, b) => a.y - b.y);
+  return flowers;
 }
 
-// Asymmetric five-bed arrangement (A–E) with broad open walkways between beds
+// Three loose clumps in an asymmetric zigzag, clear of the HUD/toolbar strips
 export const beds: Bed[] = [
-  makeBed(28, 66, 340), // A — tulips
-  makeBed(236, 66, 50), // B — daisies
-  makeBed(132, 258, 315), // C — blossoms
-  makeBed(28, 428, 40), // D — sunflowers
-  makeBed(236, 462, 275), // E — violets
+  makeBed(245, 155, 340), // tulips
+  makeBed(115, 340, 50), // daisies
+  makeBed(240, 500, 315), // blossoms
 ];
 
 // Flattens a flower; it stays gone for the rest of the wave once the
@@ -123,22 +132,16 @@ export function trample(f: Flower) {
 export const standing = (f: Flower) =>
   f.state === FlowerState.Growing && f.growth >= 0.33;
 
-// Fingers are fat and flowers sit 28 px apart — half that spacing is a
-// generous target that still can't hit two flowers at once.
-const SELL_RADIUS = 14;
-// Harvesting needs the lep nearby (of the bed, not the exact flower) so
+// Fingers are fat and flowers sit ~23 px apart in a cluster — half that
+// spacing is a generous target that still can't hit two flowers at once.
+const SELL_RADIUS = 10;
+// Harvesting needs the lep nearby the flower itself (not just its bed) so
 // selling isn't free from across the garden — he has to tend the patch.
 const SELL_RANGE = 50;
 
-function distToBed(bed: Bed, x: number, y: number) {
-  const cx = Math.min(Math.max(x, bed.x), bed.x + bed.w);
-  const cy = Math.min(Math.max(y, bed.y), bed.y + bed.h);
-  return Math.hypot(x - cx, y - cy);
-}
-
 // Nearest mature flower under a tap, harvested back to a bare sprout, but
-// only in beds the lep is standing close to. Out-of-range or immature-flower
-// taps fall through to the lep, e.g. as ordinary ground movement.
+// only among flowers the lep is standing close to. Out-of-range or
+// immature-flower taps fall through to the lep, e.g. as ordinary ground movement.
 export function sellAt(
   x: number,
   y: number,
@@ -148,11 +151,11 @@ export function sellAt(
   let best: Flower | undefined;
   let bestDist = SELL_RADIUS;
   for (const bed of beds) {
-    if (distToBed(bed, lepX, lepY) > SELL_RANGE) {
-      continue;
-    }
-    for (const f of bed.flowers) {
+    for (const f of bed) {
       if (f.state !== FlowerState.Growing || f.growth < 1) {
+        continue;
+      }
+      if (Math.hypot(f.x - lepX, f.y - lepY) > SELL_RANGE) {
         continue;
       }
       const d = Math.hypot(f.x - x, f.y - y);
@@ -172,7 +175,7 @@ export function sellAt(
 // waves are self-contained growing seasons, not a garden that just keeps aging.
 export function resetGarden() {
   for (const bed of beds) {
-    for (const f of bed.flowers) {
+    for (const f of bed) {
       f.growth = 0;
       f.state = FlowerState.Growing;
       f.anim = 0;
@@ -185,7 +188,7 @@ export function resetGarden() {
 // flowers (trampled/sold/withered) are left alone.
 export function witherGarden() {
   for (const bed of beds) {
-    for (const f of bed.flowers) {
+    for (const f of bed) {
       if (f.state === FlowerState.Growing && f.growth > 0) {
         f.state = FlowerState.Withering;
         f.anim = WITHER_TIME;
@@ -196,7 +199,7 @@ export function witherGarden() {
 
 export function updateGarden(dt: number) {
   for (const bed of beds) {
-    for (const f of bed.flowers) {
+    for (const f of bed) {
       if (f.state === FlowerState.Growing) {
         f.growth = Math.min(1, f.growth + f.rate * dt);
         continue;
@@ -291,15 +294,7 @@ function drawFlower(f: Flower, time: number) {
 
 export function drawGarden(time: number) {
   for (const bed of beds) {
-    // soil patch
-    ctx.fillStyle = "#6b4a2c";
-    ctx.beginPath();
-    ctx.roundRect(bed.x, bed.y, bed.w, bed.h, 10);
-    ctx.fill();
-    ctx.strokeStyle = "#54371f";
-    ctx.lineWidth = 3;
-    ctx.stroke();
-    for (const f of bed.flowers) {
+    for (const f of bed) {
       drawFlower(f, time);
     }
   }

@@ -56,8 +56,8 @@ const NERVOUS_NOTICE_TIME = 0.25;
 const NOTICE_RADIUS = 70;
 const NOTICE_RATE = 0.4; // chance/second of noticing a flower while wandering
 // Flowers this close to a unicorn's hooves get trampled, in any state — a hit
-// radius smaller than the 28px flower spacing so a pass-through costs one or
-// two flowers, not the whole bed.
+// radius smaller than a cluster's ~23px flower spacing so a pass-through costs
+// one or two flowers, not the whole bed.
 const TRAMPLE_RADIUS = 9;
 // Unicorns start turning just before a repellent's edge, so they read as
 // avoiding the area rather than bouncing off it
@@ -80,30 +80,22 @@ const SPAWNS = [
   { x: 240, y: FIELD_BOTTOM + 30 },
 ];
 
-function bedAt(x: number, y: number, pad: number) {
-  for (const b of beds) {
-    if (
-      x > b.x - pad &&
-      x < b.x + b.w + pad &&
-      y > b.y - pad &&
-      y < b.y + b.h + pad
-    ) {
-      return b;
-    }
-  }
-  return undefined;
-}
-
-// random point in the open walkways (never inside an inflated bed rect)
+// random point on the lawn, clear of active repellents (beds are no longer
+// obstacles — a unicorn can wander straight through a cluster)
 function openPoint() {
   for (let i = 0; i < 30; i++) {
     const x = 25 + Math.random() * 310;
     const y = FIELD_TOP + 30 + Math.random() * (FIELD_BOTTOM - FIELD_TOP - 60);
-    if (!bedAt(x, y, 16) && !inRepellent(x, y)) {
+    if (!inRepellent(x, y)) {
       return { x, y };
     }
   }
   return { x: 180, y: 380 }; // central walkway fallback
+}
+
+// which bed a flower belongs to, by membership rather than geometry
+function bedOf(f: Flower) {
+  return beds.find((b) => b.includes(f));
 }
 
 function setWaypoint(u: Unicorn, p: { x: number; y: number }) {
@@ -119,7 +111,7 @@ function nearestFlowerIn(u: Unicorn, list: Bed[], maxDist: number) {
   let best: Flower | undefined;
   let bestDist = maxDist;
   for (const b of list) {
-    for (const f of b.flowers) {
+    for (const f of b) {
       // flowers under a repellent stop being noticeable — the tool has to
       // protect the bed it covers, not just bend traffic around it
       if (!standing(f) || inRepellent(f.x, f.y)) {
@@ -191,7 +183,7 @@ export function updateUnicorns(dt: number) {
     // Damage follows the hooves, not just the noticed target: any flower a
     // unicorn stands on gets trampled, in every state.
     for (const b of beds) {
-      for (const f of b.flowers) {
+      for (const f of b) {
         if (standing(f) && Math.hypot(f.x - u.x, f.y - u.y) < TRAMPLE_RADIUS) {
           trample(f);
         }
@@ -251,8 +243,8 @@ export function updateUnicorns(dt: number) {
         setWaypoint(u, u.target as Flower);
         // committing to the bed: it'll step flower to flower until this many
         // are gone, capped at what the bed actually holds
-        const bed = bedAt((u.target as Flower).x, (u.target as Flower).y, 0);
-        u.spree = bed ? bed.flowers.length : 1;
+        const bed = bedOf(u.target as Flower);
+        u.spree = bed ? bed.length : 1;
       }
       continue;
     }
@@ -291,7 +283,7 @@ export function updateUnicorns(dt: number) {
         // the target flower already died underfoot via the trample check
         // above. Stump the rest of the bed before moving on: no fresh
         // telegraph, just step straight to the next standing flower in it.
-        const bed = bedAt((u.target as Flower).x, (u.target as Flower).y, 0);
+        const bed = bedOf(u.target as Flower);
         u.target = undefined;
         u.spree--;
         const next =
@@ -386,23 +378,10 @@ export function updateUnicorns(dt: number) {
         lep.blocking = true;
       }
     }
-    let nx = u.x + dirx * step;
-    let ny = u.y + diry * step;
-    // beds are hazards from the unicorn's perspective: slide around them,
-    // except when charging a target — that's the one time it walks in on purpose
-    if (
-      u.state !== UnicornState.Target &&
-      u.state !== UnicornState.Scared &&
-      bedAt(nx, ny, 10)
-    ) {
-      if (!bedAt(nx, u.y, 10)) {
-        ny = u.y;
-      } else if (!bedAt(u.x, ny, 10)) {
-        nx = u.x;
-      }
-    }
-    u.x = nx;
-    u.y = ny;
+    // beds are just clumps of flowers now, not obstacles — a unicorn walks
+    // straight across one like any other patch of lawn
+    u.x += dirx * step;
+    u.y += diry * step;
   }
 }
 
@@ -438,7 +417,7 @@ const MUZZLE = new Path2D(
 );
 
 // The art measures 15.3x13.9 drawing units; 2.2 lands it at ~34x31 px, the
-// footprint the old primitive sprite had, so bed spacing, the trample radius
+// footprint the old primitive sprite had, so flower spacing, the trample radius
 // and the thought bubble all still read right.
 const SPRITE_SCALE = 2.2;
 const ANCHOR_X = 99.9;

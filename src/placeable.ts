@@ -7,8 +7,8 @@ export type Placeable = { x: number; y: number; life: number };
 export const repellents: Placeable[] = [];
 export const attractors: Placeable[] = [];
 
-// Roughly half a bed wide — one repellent covers a bed's approach, not the
-// whole walkway, so placement is a real decision.
+// Wide enough to cover a whole flower cluster, so one repellent shields an
+// entire bed rather than half of it.
 export const REPEL_RADIUS = 46;
 // The lure has to reach across a walkway to pull a unicorn off a bed it is
 // already walking at, so its pull is far wider than the repellent's push.
