@@ -177,6 +177,29 @@ export function sellAt(
   return best;
 }
 
+// Walking over a mature flower harvests the nearest one within the same
+// targeting radius as a click.
+export function harvestAtPosition(x: number, y: number): Flower | undefined {
+  let best: Flower | undefined;
+  let bestDist = SELL_RADIUS;
+  for (const bed of beds) {
+    for (const f of bed) {
+      if (f.state !== FlowerState.Growing || f.growth < 1) {
+        continue;
+      }
+      const d = Math.hypot(f.x - x, f.y - y);
+      if (d < bestDist) {
+        bestDist = d;
+        best = f;
+      }
+    }
+  }
+  if (best) {
+    best.state = FlowerState.Gone;
+  }
+  return best;
+}
+
 // At each wave start every flower starts over at stage 0, survivors and all —
 // waves are self-contained growing seasons, not a garden that just keeps aging.
 export function resetGarden() {

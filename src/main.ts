@@ -12,6 +12,7 @@ import {
   drawLawn,
   FIELD_BOTTOM,
   FIELD_TOP,
+  harvestAtPosition,
   sellAt,
   updateGarden,
 } from "./garden";
@@ -97,7 +98,12 @@ start(
     }
     time += dt;
     updateGarden(dt);
+    const wasWalking = lep.moving;
     updateLep(dt);
+    const f = wasWalking && harvestAtPosition(lep.x, lep.y);
+    if (f) {
+      addCoins(f.x, f.y);
+    }
     updateWaves(dt);
     updateUnicorns(dt);
     updateNoise(dt);
