@@ -600,6 +600,12 @@ function drawThoughtBubble(u: Unicorn, time: number) {
 }
 
 export function drawUnicorns(time: number) {
+  // unicorns are gameplay, not UI: clip to the lawn so one walking in or out
+  // slides under the header/footer stripes instead of drawing over them
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(0, FIELD_TOP, VIEW_W, FIELD_BOTTOM - FIELD_TOP);
+  ctx.clip();
   for (const u of unicorns) {
     if (u.state === UnicornState.Warn) {
       // edge warning marker where the unicorn is about to enter — a nervous
@@ -624,4 +630,5 @@ export function drawUnicorns(time: number) {
       drawThoughtBubble(u, time);
     }
   }
+  ctx.restore();
 }
