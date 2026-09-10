@@ -33,7 +33,7 @@ import {
   toolbarKey,
   toolbarTap,
 } from "./toolbar";
-import { drawUnicorns, scareUnicorns, updateUnicorns } from "./unicorn";
+import { drawUnicorns, updateUnicorns } from "./unicorn";
 import { updateWaves } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
@@ -50,7 +50,8 @@ let time = 0;
 function useTool(tool: number) {
   lep.moving = false; // he stops where he is to use it
   if (tool === 0) {
-    scareUnicorns(lep.x, lep.y);
+    // Scaring is driven by the ring sweep in noise.ts: unis are hit as the
+    // drawn circle reaches them, not all at once.
     startRing();
     setBusy(true);
   } else if (tool === 1) {

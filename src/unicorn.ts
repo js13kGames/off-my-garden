@@ -9,7 +9,6 @@ import {
   trample,
 } from "./garden";
 import { LEP_RADIUS, lep } from "./leprechaun";
-import { RING_MAX } from "./noise";
 import {
   inRepellent,
   nearestAttractor,
@@ -163,14 +162,22 @@ export function spawnUnicorn(nervous: boolean) {
   });
 }
 
-export function scareUnicorns(originX: number, originY: number) {
+// Scare every unicorn the noise ring has reached so far. The caller sweeps
+// with the expanding circle radius (see noise.ts), so a uni is only hit at
+// the frame the drawn ring touches it. Radius grows to RING_MAX over the
+// ring's lifetime; already-scared unis are skipped, making re-sweeps safe.
+export function scareUnicorns(
+  originX: number,
+  originY: number,
+  radius: number,
+) {
   for (const u of unicorns) {
     if (u.state === UnicornState.Scared) {
       continue;
     }
     const dx = u.x - originX;
     const dy = u.y - originY;
-    if (Math.hypot(dx, dy) > RING_MAX) {
+    if (Math.hypot(dx, dy) > radius) {
       continue;
     }
     // Flee to the nearest edge in the direction away from the noise.
