@@ -2,7 +2,7 @@ import { ctx } from "./canvas";
 import { lep } from "./leprechaun";
 
 const RING_DURATION = 1;
-const RING_MAX = 100;
+export const RING_MAX = 100;
 let ringT = 1; // starts finished (no animation)
 
 export function startRing() {

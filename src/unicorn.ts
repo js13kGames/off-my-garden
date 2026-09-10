@@ -9,6 +9,7 @@ import {
   trample,
 } from "./garden";
 import { LEP_RADIUS, lep } from "./leprechaun";
+import { RING_MAX } from "./noise";
 import {
   inRepellent,
   nearestAttractor,
@@ -169,6 +170,9 @@ export function scareUnicorns(originX: number, originY: number) {
     }
     const dx = u.x - originX;
     const dy = u.y - originY;
+    if (Math.hypot(dx, dy) > RING_MAX) {
+      continue;
+    }
     // Flee to the nearest edge in the direction away from the noise.
     // Pick the dominant axis to determine which edge to head for.
     const ax = Math.abs(dx);
