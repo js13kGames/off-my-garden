@@ -252,12 +252,10 @@ function drawFlower(f: Flower, time: number) {
     ctx.rotate((1 - k) * 1.2);
   }
   if (g >= 1 && f.state === FlowerState.Growing) {
-    // mature: subtle pulsing halo instead of a permanent icon
-    const pulse = 0.5 + 0.5 * Math.sin(time * 4 + f.x);
-    ctx.fillStyle = `hsla(${f.hue},90%,70%,${0.15 + 0.15 * pulse})`;
-    ctx.beginPath();
-    ctx.arc(0, -6, 11 + 2 * pulse, 0, 7);
-    ctx.fill();
+    // mature: a slow bob (whole flower, local space) says "collect me" in any
+    // hue — phase derives from x so a bed ripples instead of bobbing in sync
+    const bob = Math.sin(time * 2.4 + f.x * 0.12) * 2;
+    ctx.translate(0, bob);
   }
   // stem grows with the flower
   const stem = 4 + 8 * g;
