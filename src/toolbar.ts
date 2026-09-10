@@ -1,6 +1,6 @@
 import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM } from "./garden";
-import { getCoins, spendCoins } from "./hud";
+import { getCoins, PRICES, spendCoins } from "./hud";
 
 // Tool indices: 0=noise, 1=repel, 2=attract. Const enum erased; kept as
 // comments so the mapping is visible in source.
@@ -9,9 +9,6 @@ const TOOLS = [
   { icon: "\u2618\uFE0F" }, // ☘️ repel
   { icon: "\u{1F48E}" }, // 💎 attract
 ];
-
-// Per-use price, paid straight from the coin bank; balance against COIN_VALUE in hud.ts.
-const PRICES = [10, 15, 20];
 
 let busy = false;
 

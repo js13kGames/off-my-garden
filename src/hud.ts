@@ -2,7 +2,9 @@ import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM } from "./garden";
 
 // Coins earned by selling flowers; spent on tools the moment they're used.
-let coins = 0;
+// Per-use price, paid straight from the coin bank; balance against COIN_VALUE in hud.ts.
+export const PRICES = [10, 15, 20];
+let coins = PRICES[0] + PRICES[1];
 const COIN_VALUE = 5;
 
 type Popup = { x: number; y: number; t: number };
