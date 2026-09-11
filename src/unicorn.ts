@@ -9,6 +9,7 @@ import {
   trample,
 } from "./garden";
 import { LEP_RADIUS, lep } from "./leprechaun";
+import { Sfx, sfx } from "./music";
 import {
   inRepellent,
   nearestAttractor,
@@ -263,6 +264,7 @@ export function updateUnicorns(dt: number) {
         u.target = undefined;
         u.state = UnicornState.Wander;
         setWaypoint(u, openPoint());
+        sfx(Sfx.Block); // its target got shielded out from under it
       } else if (inRepellent(u.wx, u.wy)) {
         setWaypoint(u, openPoint());
       }
@@ -294,6 +296,7 @@ export function updateUnicorns(dt: number) {
         u.target = f;
         u.state = UnicornState.Notice;
         u.timer = u.nervous ? NERVOUS_NOTICE_TIME : NOTICE_TIME;
+        sfx(Sfx.Notice);
         continue;
       }
     }
@@ -394,6 +397,7 @@ export function updateUnicorns(dt: number) {
         const dLep = Math.hypot(u.x - lep.x, u.y - lep.y);
         if (!camping && dLep < LEP_RADIUS + AVOID_MARGIN) {
           u.spookTimer = LEP_SPOOK_TIME;
+          sfx(Sfx.Block);
           // Dropping whatever it was walking toward is what sells the
           // encounter as a redirect: resuming the same flower or wander spot
           // afterward would just look like a pause. Leave/Lured are left

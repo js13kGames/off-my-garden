@@ -1,4 +1,5 @@
 import { ctx } from "./canvas";
+import { Sfx, sfx } from "./music";
 
 export type Placeable = { x: number; y: number; life: number };
 
@@ -22,10 +23,12 @@ const FADE = 2;
 
 export function placeRepellent(x: number, y: number) {
   repellents.push({ x, y, life: LIFE });
+  sfx(Sfx.Place);
 }
 
 export function placeAttractor(x: number, y: number) {
   attractors.push({ x, y, life: LIFE });
+  sfx(Sfx.Place);
 }
 
 function expire(items: Placeable[], dt: number) {

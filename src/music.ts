@@ -1,8 +1,8 @@
 // Tiny procedural background loop — a hand-rolled WebAudio sequencer instead
 // of a tracker player + song blob, since the player alone (SoundBox/ZzFXM)
 // would cost more bytes than this whole file plus its "song".
-// ponytail: music only, no SFX — the win/lose stingers are just alternate
-// rows in TRACKS (roots/melody/tempo/waveform/gain), not a second engine.
+// One-shot sound effects (below, sfx()) reuse the same note() primitive and
+// master gain, so the music mute doubles as the SFX mute for free.
 
 export const enum Track {
   Play,
@@ -48,11 +48,18 @@ function note(
   dur: number,
   type: OscillatorType,
   gain: number,
+  drop = 0, // semitones the pitch falls over dur — the "impact" sweep for a thud
 ) {
   const osc = ac!.createOscillator();
   const g = ac!.createGain();
   osc.type = type;
-  osc.frequency.value = BASE * 2 ** (semi / 12);
+  osc.frequency.setValueAtTime(BASE * 2 ** (semi / 12), at);
+  if (drop) {
+    osc.frequency.exponentialRampToValueAtTime(
+      BASE * 2 ** ((semi - drop) / 12),
+      at + dur,
+    );
+  }
   osc.connect(g).connect(master);
   g.gain.setValueAtTime(0, at);
   g.gain.linearRampToValueAtTime(gain, at + 0.01);
@@ -81,6 +88,50 @@ export function toggleMusic() {
   on = !on;
   if (master) {
     master.gain.linearRampToValueAtTime(on ? 0.18 : 0, ac!.currentTime + 0.05);
+  }
+}
+
+export const enum Sfx {
+  Notice,
+  Block,
+  Stomp,
+  Ring,
+  Coin,
+  Place,
+}
+
+// [semitones played in sequence, note duration, waveform, gain, gap between
+// notes, pitch-drop for a thud's downward sweep]. Same table shape as TRACKS
+// above — one place to tune the whole sound design instead of six
+// hand-written functions.
+const SFX: [number[], number, OscillatorType, number, number, number?][] = [
+  [[24, 31], 0.09, "triangle", 0.22, 0.07], // Notice — rising "huh?"
+  [[-5, -12], 0.16, "square", 0.2, 0.05], // Block — descending thunk
+  [[-9], 0.14, "sine", 0.35, 0, 10], // Stomp — round low thump, pitch falling through it
+  [[19, 12, 5, -2], 0.07, "sawtooth", 0.18, 0.04], // Ring — descending sweep
+  [[24, 31], 0.06, "square", 0.24, 0.05], // Coin — fast two-note up
+  [[12], 0.06, "triangle", 0.2, 0], // Place — single blip
+];
+
+const lastPlayed: number[] = [];
+
+export function sfx(kind: Sfx) {
+  if (!ac) {
+    return; // no gesture has started the context yet — same guard as updateMusic
+  }
+  const now = ac.currentTime;
+  // One sound per kind per 80 ms. Load-bearing, not polish: the trample check
+  // sweeps every flower of every bed each tick, so a unicorn crossing a
+  // cluster can flatten two or three in one frame, and a noise ring scares a
+  // whole group at once. Without this gate each one stacks its own
+  // oscillator into a single clipped blare.
+  if (now - (lastPlayed[kind] ?? 0) < 0.08) {
+    return;
+  }
+  lastPlayed[kind] = now;
+  const [semis, dur, type, gain, gap, drop] = SFX[kind];
+  for (let i = 0; i < semis.length; i++) {
+    note(semis[i], now + i * gap, dur, type, gain, drop);
   }
 }
 

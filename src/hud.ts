@@ -1,6 +1,6 @@
 import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM } from "./garden";
-import { musicOn, toggleMusic } from "./music";
+import { musicOn, Sfx, sfx, toggleMusic } from "./music";
 
 // Coins earned by selling flowers; spent on tools the moment they're used.
 // Per-use price, paid straight from the coin bank; balance against COIN_VALUE in hud.ts.
@@ -23,6 +23,7 @@ let arcT = -1; // seconds since the rainbow was won, -1 = not yet won
 export function addCoins(x: number, y: number) {
   coins += COIN_VALUE;
   pops.push({ x, y, t: POP_TIME });
+  sfx(Sfx.Coin);
   if (arcT >= 0) {
     return; // already won — meter stays full, no more fills
   }

@@ -1,5 +1,6 @@
 import { ctx } from "./canvas";
 import { lep } from "./leprechaun";
+import { Sfx, sfx } from "./music";
 import { scareUnicorns } from "./unicorn";
 
 const RING_DURATION = 1;
@@ -14,6 +15,7 @@ export function startRing() {
   ringT = 0;
   ox = lep.x;
   oy = lep.y;
+  sfx(Sfx.Ring);
 }
 
 export function isRingBusy(): boolean {

@@ -1,4 +1,5 @@
 import { ctx, VIEW_H, VIEW_W } from "./canvas";
+import { Sfx, sfx } from "./music";
 
 // Playfield strips: HUD above, toolbar below — later tickets fill them in.
 export const FIELD_TOP = 40;
@@ -131,6 +132,7 @@ export function trample(f: Flower) {
   f.state = FlowerState.Trampled;
   f.anim = FLAT_TIME;
   stumped++;
+  sfx(Sfx.Stomp);
 }
 
 // Visible, alive, and hittable — what unicorns notice/trample and what the

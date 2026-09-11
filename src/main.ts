@@ -27,7 +27,7 @@ import {
 } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
-import { setTrack, startMusic, toggleMusic, Track, updateMusic } from "./music";
+import { setTrack, startMusic, Track, toggleMusic, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
 import {
   drawPlaceables,
