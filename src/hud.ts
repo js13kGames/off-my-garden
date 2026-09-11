@@ -11,24 +11,29 @@ type Popup = { x: number; y: number; t: number };
 const POP_TIME = 0.9;
 const pops: Popup[] = [];
 
-// Rainbow objective: every harvested flower fills the meter; full meter fires
-// a celebration sweep and counts a completed rainbow. Purely cosmetic — no
-// gameplay effect — so it never touches the coin economy above.
+// Rainbow objective: every harvested flower fills the meter; a full meter
+// draws the rainbow in and wins the run. Coins still count as score, but the
+// meter itself never resets once won.
 const FLOWERS_PER_RAINBOW = 10;
 let rainbowFill = 0; // 0..1
-let rainbows = 0; // completed this run, counted indefinitely
-const ARC_TIME = 2; // seconds the sweep animation plays for
-let arcTime = 0; // seconds left in the sweep, 0 = idle
+const ARC_TIME = 2; // seconds the draw-in animation takes
+let arcT = -1; // seconds since the rainbow was won, -1 = not yet won
 
 export function addCoins(x: number, y: number) {
   coins += COIN_VALUE;
   pops.push({ x, y, t: POP_TIME });
+  if (arcT >= 0) {
+    return; // already won — meter stays full, no more fills
+  }
   rainbowFill += 1 / FLOWERS_PER_RAINBOW;
   if (rainbowFill >= 1) {
-    rainbowFill = 0;
-    rainbows++;
-    arcTime = ARC_TIME;
+    rainbowFill = 1;
+    arcT = 0;
   }
+}
+
+export function rainbowDone(): boolean {
+  return arcT >= 0;
 }
 
 export function getCoins(): number {
@@ -46,7 +51,9 @@ export function updateHud(dt: number) {
       pops.splice(i, 1);
     }
   }
-  arcTime = Math.max(0, arcTime - dt);
+  if (arcT >= 0) {
+    arcT += dt;
+  }
 }
 
 // Seven bands, one per rainbow colour — shared by the meter fill and the sweep.
@@ -76,19 +83,16 @@ function drawMeter() {
     ctx.roundRect(METER_X, 13, fillW, METER_H, 7);
     ctx.fill();
   }
-  ctx.textAlign = "left";
-  ctx.font = "bold 16px sans-serif";
-  ctx.fillStyle = "#ffd54a";
-  ctx.fillText(`\u{1F308} ${rainbows}`, METER_X + METER_W + 8, 26);
 }
 
-// Broad rainbow arch swept across the garden when the meter fills — centred
-// below the playfield so only its top rides into view, like a real rainbow.
+// Broad rainbow arch drawn in once the meter fills, then held on screen for
+// the rest of the run — centred below the playfield so only its top rides
+// into view, like a real rainbow.
 function drawRainbowArc() {
-  if (arcTime <= 0) {
+  if (arcT < 0) {
     return;
   }
-  const k = 1 - arcTime / ARC_TIME;
+  const k = Math.min(1, arcT / ARC_TIME);
   // capped so bands read as translucent even at full reveal
   const ALPHA = 0.5;
   const cx = VIEW_W / 2;
@@ -96,24 +100,10 @@ function drawRainbowArc() {
   // 60% of a half circle, centred on straight up so it reads as an arch, not a horizon-to-horizon rainbow
   const span = Math.PI * 0.6;
   const leftEdge = Math.PI * 1.5 - span / 2;
-  const rightEdge = leftEdge + span;
-  // Same left-to-right motion for both halves of the animation: draws in by
-  // growing the end angle, holds fully drawn, then leaves by growing the
-  // start angle over the same span instead of fading — an erase, not a fade.
-  // The hold is deliberately shorter than the draw/erase halves.
-  const DRAW_FRAC = 0.4;
-  const HOLD_FRAC = 0.2;
-  const ERASE_FRAC = 1 - DRAW_FRAC - HOLD_FRAC;
-  let startAngle = leftEdge;
-  let endAngle = leftEdge;
-  if (k < DRAW_FRAC) {
-    endAngle = leftEdge + span * (k / DRAW_FRAC);
-  } else if (k < DRAW_FRAC + HOLD_FRAC) {
-    endAngle = rightEdge;
-  } else {
-    startAngle = leftEdge + span * ((k - DRAW_FRAC - HOLD_FRAC) / ERASE_FRAC);
-    endAngle = rightEdge;
-  }
+  // Draws in left-to-right by growing the end angle, then holds fully drawn
+  // — once won, the rainbow stays.
+  const startAngle = leftEdge;
+  const endAngle = leftEdge + span * k;
   // stretched wide enough that even the innermost (smallest) band's ends
   // land off-screen on both sides
   const RADIUS_X_SCALE = 2.2;

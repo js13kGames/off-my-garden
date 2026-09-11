@@ -16,7 +16,7 @@ import {
   sellAt,
   updateGarden,
 } from "./garden";
-import { addCoins, drawHud, updateHud } from "./hud";
+import { addCoins, drawHud, rainbowDone, updateHud } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
@@ -40,6 +40,7 @@ import { updateWaves } from "./wave";
 const enum State {
   Idle,
   Playing,
+  Won, // rainbow complete — sim frozen, input ignored
 }
 let state: State = State.Idle;
 let time = 0;
@@ -70,6 +71,9 @@ addEventListener("keydown", (e) => {
   }
 });
 canvas.addEventListener("pointerdown", (e) => {
+  if (state === State.Won) {
+    return;
+  }
   if (state === State.Idle) {
     state = State.Playing;
     return;
@@ -94,6 +98,10 @@ canvas.addEventListener("pointerdown", (e) => {
 start(
   // update
   ({ dt }) => {
+    if (state === State.Won) {
+      updateHud(dt); // keeps the arc's draw-in animation playing
+      return;
+    }
     if (state !== State.Playing) {
       return;
     }
@@ -117,6 +125,9 @@ start(
       useTool(kb);
     }
     updateHud(dt);
+    if (rainbowDone()) {
+      state = State.Won; // sim freezes from the next tick on
+    }
   },
   // render
   () => {
