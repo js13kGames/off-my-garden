@@ -27,7 +27,7 @@ import {
 } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
-import { startMusic, toggleMusic, updateMusic } from "./music";
+import { setTrack, startMusic, toggleMusic, Track, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
 import {
   drawPlaceables,
@@ -158,8 +158,10 @@ start(
     updateHud(dt);
     if (rainbowDone()) {
       state = State.Won; // sim freezes from the next tick on
+      setTrack(Track.Win);
     } else if (gardenStumped()) {
       state = State.Lost; // sim freezes, rain takes over from the next tick
+      setTrack(Track.Lose);
     }
   },
   // render

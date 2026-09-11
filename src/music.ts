@@ -1,16 +1,40 @@
 // Tiny procedural background loop — a hand-rolled WebAudio sequencer instead
 // of a tracker player + song blob, since the player alone (SoundBox/ZzFXM)
 // would cost more bytes than this whole file plus its "song".
-// ponytail: music only, no SFX and no win/lose variation — add stingers if
-// silence on those screens ever bugs someone.
+// ponytail: music only, no SFX — the win/lose stingers are just alternate
+// rows in TRACKS (roots/melody/tempo/waveform/gain), not a second engine.
+
+export const enum Track {
+  Play,
+  Win,
+  Lose,
+}
 
 const BASE = 220; // A3, semitone 0
-const STEP = 0.27; // ~110 BPM eighth notes
 const BAR_STEPS = 8;
-// I–V–vi–IV, in semitones over BASE
-const ROOTS = [0, 7, 9, 5];
-// one pentatonic degree (0,2,4,7,9) per step, "." = rest — 4 bars, loops forever
-const MELODY = "4.7.9.7.4.2.0...9.7.9.7.4.7.9...0.2.4.2.0.....7.9.7.4.2.0.2.4.";
+// [roots (chord progression, in semitones), melody (pentatonic degree per
+// step, "." = rest), step duration in seconds, melody waveform, melody gain]
+const TRACKS: [number[], string, number, OscillatorType, number][] = [
+  [
+    [0, 7, 9, 5],
+    "4.7.9.7.4.2.0...9.7.9.7.4.7.9...0.2.4.2.0.....7.9.7.4.2.0.2.4.",
+    0.27,
+    "square",
+    0.12,
+  ], // Play
+  [[0, 5, 7, 4], "0.2.4.7.9.7.4.2.0.2.4.7.9.7.4.2.", 0.14, "square", 0.16], // Win — same register, faster, louder square
+  [[0, -2, -4, -2], "0.2.0.....4.2.0.....7.4.2.0.......", 0.5, "sine", 0.16], // Lose — same register, slow, soft sine
+];
+
+let track = TRACKS[0];
+
+export function setTrack(t: Track) {
+  if (track === TRACKS[t]) {
+    return;
+  }
+  track = TRACKS[t];
+  stepI = 0; // restart the new track's pattern from its own top
+}
 
 let ac: AudioContext | undefined;
 let master: GainNode;
@@ -64,29 +88,30 @@ export function updateMusic() {
   if (!ac) {
     return;
   }
+  const [roots, melody, step, type, gain] = track;
   while (nextTime < ac.currentTime + 0.25) {
     const bar = (stepI / BAR_STEPS) | 0;
     if (stepI % BAR_STEPS === 0) {
       note(
-        ROOTS[bar % ROOTS.length] - 12,
+        roots[bar % roots.length] - 12,
         nextTime,
-        STEP * BAR_STEPS * 0.9,
+        step * BAR_STEPS * 0.9,
         "triangle",
         0.5,
       );
     }
-    const deg = MELODY[stepI % MELODY.length];
+    const deg = melody[stepI % melody.length];
     if (deg !== ".") {
       const scale = [0, 2, 4, 7, 9];
       note(
-        ROOTS[bar % ROOTS.length] + scale[Number(deg) % scale.length] + 12,
+        roots[bar % roots.length] + scale[Number(deg) % scale.length] + 12,
         nextTime,
-        STEP * 0.85,
-        "square",
-        0.12,
+        step * 0.85,
+        type,
+        gain,
       );
     }
-    nextTime += STEP;
+    nextTime += step;
     stepI++;
   }
 }
