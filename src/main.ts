@@ -12,11 +12,12 @@ import {
   drawLawn,
   FIELD_BOTTOM,
   FIELD_TOP,
+  gardenStumped,
   harvestAtPosition,
   sellAt,
   updateGarden,
 } from "./garden";
-import { addCoins, drawHud, rainbowDone, updateHud } from "./hud";
+import { addCoins, drawHud, getCoins, rainbowDone, updateHud } from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
@@ -26,6 +27,7 @@ import {
   placeRepellent,
   updatePlaceables,
 } from "./placeable";
+import { drawRain, updateRain } from "./rain";
 import {
   drawToolbar,
   setBusy,
@@ -34,13 +36,14 @@ import {
   toolbarTap,
 } from "./toolbar";
 import { drawUnicorns, updateUnicorns } from "./unicorn";
-import { updateWaves } from "./wave";
+import { updateWaves, wavesSurvived } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
   Idle,
   Playing,
   Won, // rainbow complete — sim frozen, input ignored
+  Lost, // every flower stumped — sim frozen, rain falls, tap restarts
 }
 let state: State = State.Idle;
 let time = 0;
@@ -74,6 +77,12 @@ canvas.addEventListener("pointerdown", (e) => {
   if (state === State.Won) {
     return;
   }
+  if (state === State.Lost) {
+    // ponytail: reload is the reset — swap for in-place resets if the flash
+    // shows or a score needs to survive the restart.
+    location.reload();
+    return;
+  }
   if (state === State.Idle) {
     state = State.Playing;
     return;
@@ -102,6 +111,11 @@ start(
       updateHud(dt); // keeps the arc's draw-in animation playing
       return;
     }
+    if (state === State.Lost) {
+      updateRain(dt); // keeps the storm ramping/falling
+      updateHud(dt); // lets any in-flight coin pop finish fading
+      return;
+    }
     if (state !== State.Playing) {
       return;
     }
@@ -127,6 +141,8 @@ start(
     updateHud(dt);
     if (rainbowDone()) {
       state = State.Won; // sim freezes from the next tick on
+    } else if (gardenStumped()) {
+      state = State.Lost; // sim freezes, rain takes over from the next tick
     }
   },
   // render
@@ -149,8 +165,36 @@ start(
     drawUnicorns(time);
     drawNoise();
     drawLep(time);
+    if (state === State.Lost) {
+      drawRain();
+    }
     drawHud();
     drawToolbar();
+    if (state === State.Lost) {
+      drawGameOver();
+    }
     ctx.restore();
   },
 );
+
+function drawGameOver() {
+  const w = 220;
+  const h = 120;
+  const x = (VIEW_W - w) / 2;
+  const y = (VIEW_H - h) / 2;
+  ctx.fillStyle = "rgba(10,15,30,0.85)";
+  ctx.beginPath();
+  ctx.roundRect(x, y, w, h, 10);
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ff6b6b";
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("GAME OVER", VIEW_W / 2, y + 32);
+  ctx.fillStyle = "#fff";
+  ctx.font = "15px sans-serif";
+  ctx.fillText(`Waves survived: ${wavesSurvived()}`, VIEW_W / 2, y + 60);
+  ctx.fillText(`Coins earned: ${getCoins()}`, VIEW_W / 2, y + 82);
+  ctx.fillStyle = "#ffd54a";
+  ctx.font = "13px sans-serif";
+  ctx.fillText("tap to restart", VIEW_W / 2, y + 106);
+}

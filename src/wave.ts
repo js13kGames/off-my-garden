@@ -16,16 +16,14 @@ function nervousChanceFor(wave: number) {
   return Math.min(0.35 + (wave - 1) * 0.08, 0.9);
 }
 
-// ponytail: no lose condition yet, waves just escalate forever and coins are
-// the score. Post-POC candidates (see README "Game structure"): a money
-// goal, a rainbow-power meter with celebration + best-count, or a timed
-// session scored at the end.
-
 let wave = 1;
 let spawned = 0;
 let spawnTimer = 1; // small delay before the first unicorn of a run
 const INTERMISSION_TIME = 2.5;
 let intermission = 0;
+
+// For the game-over panel's score line.
+export const wavesSurvived = () => wave;
 
 /** Advances the wave clock: spawns the roster, and once it's gone, withers
  * and resets the garden before starting the next wave right away. */

@@ -120,11 +120,17 @@ export const beds: Bed[] = [
   makeBed(240, 500, 315), // blossoms
 ];
 
+// Counts stumped flowers this wave — the game-over trigger. standing() gates
+// every trample() call and it requires Growing, which trample() leaves for
+// good, so a flower can never be counted twice.
+let stumped = 0;
+
 // Flattens a flower; it stays gone for the rest of the wave once the
 // flatten animation (below) finishes.
 export function trample(f: Flower) {
   f.state = FlowerState.Trampled;
   f.anim = FLAT_TIME;
+  stumped++;
 }
 
 // Visible, alive, and hittable — what unicorns notice/trample and what the
@@ -137,6 +143,12 @@ export const standing = (f: Flower) =>
 // nothing more to lose, even the sprouts too young for `standing`.
 export const gardenBare = () =>
   !beds.some((b) => b.some((f) => f.state === FlowerState.Growing));
+
+// Only stumping loses the garden — harvested and withered flowers are the
+// player's own doing, and gardenBare() can't tell the three apart. Every
+// flower in every bed has been trampled once stumped hits the total count.
+export const gardenStumped = () =>
+  stumped === beds.reduce((n, b) => n + b.length, 0);
 
 // Fingers are fat and flowers sit ~23 px apart in a cluster — half that
 // spacing is a generous target that still can't hit two flowers at once.
@@ -203,6 +215,7 @@ export function harvestAtPosition(x: number, y: number): Flower | undefined {
 // At each wave start every flower starts over at stage 0, survivors and all —
 // waves are self-contained growing seasons, not a garden that just keeps aging.
 export function resetGarden() {
+  stumped = 0;
   for (const bed of beds) {
     for (const f of bed) {
       f.growth = 0;
