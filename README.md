@@ -109,7 +109,8 @@ Candidate structures for the full game (post-POC):
 - **TypeScript + Vite + Biome**, pnpm, `vite-plugin-singlefile`, advzip — the same
   pipeline as the sibling TurboToot project. Zip size measured from the start.
 - **Canvas 2D**, no game engine: custom fixed-step loop, custom steering, procedural
-  graphics (circles, curves, polygons). ZzFX considered later for sound.
+  graphics (circles, curves, polygons). Background music is a hand-rolled
+  WebAudio step sequencer (`src/music.ts`), no tracker player or song blob.
 - 13 KB zipped budget.
 
 ### Reuse from TurboToot (`../TurboToot`)

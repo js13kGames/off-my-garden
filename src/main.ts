@@ -17,9 +17,17 @@ import {
   sellAt,
   updateGarden,
 } from "./garden";
-import { addCoins, drawHud, getCoins, rainbowDone, updateHud } from "./hud";
+import {
+  addCoins,
+  drawHud,
+  getCoins,
+  musicButtonTap,
+  rainbowDone,
+  updateHud,
+} from "./hud";
 import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
+import { startMusic, toggleMusic, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
 import {
   drawPlaceables,
@@ -67,13 +75,22 @@ function useTool(tool: number) {
 
 addEventListener("keydown", (e) => {
   if (e.code === "Space" && state === State.Idle) {
+    startMusic();
     state = State.Playing;
+  }
+  if (e.key === "m" || e.key === "M") {
+    toggleMusic();
   }
   if (e.key >= "1" && e.key <= "3" && state === State.Playing) {
     toolbarKey(Number(e.key));
   }
 });
 canvas.addEventListener("pointerdown", (e) => {
+  startMusic();
+  const p = toLogical(e);
+  if (musicButtonTap(p.x, p.y)) {
+    return;
+  }
   if (state === State.Won) {
     return;
   }
@@ -87,7 +104,6 @@ canvas.addEventListener("pointerdown", (e) => {
     state = State.Playing;
     return;
   }
-  const p = toLogical(e);
   const tool = toolbarTap(p.x, p.y);
   if (tool >= 0) {
     useTool(tool);
@@ -107,6 +123,7 @@ canvas.addEventListener("pointerdown", (e) => {
 start(
   // update
   ({ dt }) => {
+    updateMusic();
     if (state === State.Won) {
       updateHud(dt); // keeps the arc's draw-in animation playing
       return;

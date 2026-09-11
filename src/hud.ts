@@ -1,5 +1,6 @@
 import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM } from "./garden";
+import { musicOn, toggleMusic } from "./music";
 
 // Coins earned by selling flowers; spent on tools the moment they're used.
 // Per-use price, paid straight from the coin bank; balance against COIN_VALUE in hud.ts.
@@ -85,6 +86,46 @@ function drawMeter() {
   }
 }
 
+// Music toggle button, right of the meter in the top HUD strip.
+const MUSIC_X = 292;
+const MUSIC_Y = 6;
+const MUSIC_W = 56;
+const MUSIC_H = 28;
+
+/** Bounds-checks a tap against the music button; toggles and reports a hit. */
+export function musicButtonTap(x: number, y: number): boolean {
+  if (
+    x < MUSIC_X ||
+    x > MUSIC_X + MUSIC_W ||
+    y < MUSIC_Y ||
+    y > MUSIC_Y + MUSIC_H
+  ) {
+    return false;
+  }
+  toggleMusic();
+  return true;
+}
+
+function drawMusicButton() {
+  ctx.fillStyle = "#2a4a73";
+  ctx.beginPath();
+  ctx.roundRect(MUSIC_X, MUSIC_Y, MUSIC_W, MUSIC_H, 6);
+  ctx.fill();
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const cx = MUSIC_X + MUSIC_W / 2;
+  ctx.fillStyle = "#fff";
+  ctx.font = "bold 9px sans-serif";
+  ctx.fillText("MUSIC", cx, MUSIC_Y + 10);
+  // only the on/off state dims — the label stays put
+  ctx.globalAlpha = musicOn() ? 1 : 0.4;
+  ctx.fillStyle = "#ffd54a";
+  ctx.font = "bold 11px sans-serif";
+  ctx.fillText(musicOn() ? "ON" : "OFF", cx, MUSIC_Y + 21);
+  ctx.globalAlpha = 1;
+  ctx.textBaseline = "alphabetic";
+}
+
 // Broad rainbow arch drawn in once the meter fills, then held on screen for
 // the rest of the run — centred below the playfield so only its top rides
 // into view, like a real rainbow.
@@ -143,6 +184,7 @@ export function drawHud() {
   ctx.fillStyle = "#ffd54a";
   ctx.fillText(`\u{1F4B0} ${coins}`, 10, 26);
   drawMeter();
+  drawMusicButton();
 
   ctx.textAlign = "center";
   ctx.font = "bold 13px sans-serif";
