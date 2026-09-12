@@ -105,7 +105,7 @@ export const enum Sfx {
 // above — one place to tune the whole sound design instead of six
 // hand-written functions.
 const SFX: [number[], number, OscillatorType, number, number, number?][] = [
-  [[24, 31], 0.09, "triangle", 0.22, 0.07], // Notice — rising "huh?"
+  [[5, 9], 0.14, "sine", 0.26, 0.1], // Notice — soft low "hm?", well clear of Coin's bright high blip
   [[-5, -12], 0.16, "square", 0.2, 0.05], // Block — descending thunk
   [[7, -5], 0.12, "sawtooth", 0.4, 0.04, 12], // Stomp — crunch: bright bite into a falling low
   [[19, 12, 5, -2], 0.07, "sawtooth", 0.18, 0.04], // Ring — descending sweep
