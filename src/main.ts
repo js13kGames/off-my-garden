@@ -162,7 +162,7 @@ canvas.addEventListener("pointerdown", (e) => {
     if (harvestingOn()) {
       const f = sellAt(p.x, p.y, lep.x, lep.y);
       if (f) {
-        addCoins(f);
+        addCoins(f, true);
         harvested();
         return; // sell taps are consumed — he stays where he is
       }

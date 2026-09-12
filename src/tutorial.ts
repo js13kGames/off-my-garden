@@ -139,7 +139,7 @@ export function update(dt: number) {
   if (wasWalking && harvestingOn()) {
     const f = harvestAtPosition(lep.x, lep.y);
     if (f) {
-      addCoins(f);
+      addCoins(f, true);
       harvested();
     }
   }
@@ -414,11 +414,13 @@ export function draw(time: number) {
     const bh = 26;
     const bx = (VIEW_W - bw) / 2;
     const by = py + h - bh - PAD; // same margin as the text has at the top
-    ctx.fillStyle = "#7ec850";
+    // same blue/yellow pairing as the HUD's music button, so every tappable
+    // chrome control in the game reads as one family
+    ctx.fillStyle = "#2a4a73";
     ctx.beginPath();
     ctx.roundRect(bx, by, bw, bh, 8);
     ctx.fill();
-    ctx.fillStyle = "#1a2a12";
+    ctx.fillStyle = "#ffd54a";
     ctx.font = "bold 13px sans-serif";
     ctx.fillText(START, VIEW_W / 2, by + 17);
     startRect = { x: bx, y: by, w: bw, h: bh };

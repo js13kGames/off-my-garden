@@ -31,7 +31,14 @@ let arcT = -1; // seconds since the rainbow was won, -1 = not yet won
 let comboHue = -1; // hue of the last harvest, -1 = no chain running
 let combo = 0; // how many same-hue harvests in a row, including this one
 
-export function addCoins(f: { x: number; y: number; hue: number }) {
+// `practice` = harvested during the tutorial: it still pays coins and pops,
+// because that is what the rewards lesson is teaching, but it must not fill
+// the meter. The tutorial garden is never reset by a wave, so its 21 flowers
+// are enough to complete a rainbow and draw the arc in behind the lessons.
+export function addCoins(
+  f: { x: number; y: number; hue: number },
+  practice = false,
+) {
   sfx(Sfx.Coin);
   combo = f.hue === comboHue ? combo + 1 : 1;
   comboHue = f.hue;
@@ -40,8 +47,8 @@ export function addCoins(f: { x: number; y: number; hue: number }) {
   const gain = Math.min(combo, COMBO_CAP);
   coins += COIN_VALUE * gain;
   pops.push({ x: f.x, y: f.y, t: POP_TIME, gain, hue: f.hue });
-  if (arcT >= 0) {
-    return; // already won — meter stays full, no more fills
+  if (practice || arcT >= 0) {
+    return; // tutorial, or already won — meter stays as it is
   }
   rainbowFill += gain / POINTS_PER_RAINBOW;
   if (rainbowFill >= 1) {
