@@ -68,6 +68,12 @@ const AVOID_MARGIN = 6;
 // than continuous skirting, so getting close to him reads as spooking it off
 // for a bit, not as an invisible wall it slides around.
 const LEP_SPOOK_TIME = 1;
+// How close he has to be to a unicorn's destination for that unicorn to ignore
+// him — the escape valve that stops him permanently shielding a flower. Kept
+// well under a cluster's ~23px flower spacing: at a full LEP_RADIUS, standing
+// anywhere in the bed you're defending counted as camping and disabled the
+// block, which is exactly the move the player expects to work.
+const CAMP_RADIUS = 12;
 
 // 8 entry points just outside the playfield edges
 const SPAWNS = [
@@ -273,6 +279,43 @@ export function updateUnicorns(dt: number) {
         setWaypoint(u, openPoint());
       }
     }
+    // The leprechaun spooks rather than steers: getting within his radius
+    // starts a short flee straight away from him, held for its own timer
+    // rather than recomputed toward the old waypoint every frame — that's
+    // what makes it read as "spooked off for a bit" instead of hugging an
+    // invisible wall around him. Camping the unicorn's own destination still
+    // beats it, so he can never permanently shield a flower.
+    // The trigger runs before the per-state branches below: a unicorn frozen
+    // mid-telegraph, or stepping flower to flower on a spree, returns out of
+    // those branches, and checking down in the movement code left it immune
+    // during exactly the window the player is reacting to.
+    if (u.state !== UnicornState.Scared && u.state !== UnicornState.Warn) {
+      if (u.spookTimer > 0) {
+        u.spookTimer -= dt;
+        lep.blocking = true; // drives his deflection ring, see leprechaun.ts
+      } else {
+        const camping = Math.hypot(u.wx - lep.x, u.wy - lep.y) < CAMP_RADIUS;
+        const dLep = Math.hypot(u.x - lep.x, u.y - lep.y);
+        if (!camping && dLep < LEP_RADIUS + AVOID_MARGIN) {
+          u.spookTimer = LEP_SPOOK_TIME;
+          sfx(Sfx.Block);
+          // Dropping whatever it was walking toward is what sells the
+          // encounter as a redirect: resuming the same flower or wander spot
+          // afterward would just look like a pause. Leave/Lured are left
+          // alone — they're re-asserted every frame by their own logic, so
+          // overriding them here would only fight it.
+          if (
+            u.state === UnicornState.Wander ||
+            u.state === UnicornState.Notice ||
+            u.state === UnicornState.Target
+          ) {
+            u.target = undefined;
+            u.state = UnicornState.Wander;
+            setWaypoint(u, openPoint());
+          }
+        }
+      }
+    }
     if (u.state === UnicornState.Warn) {
       u.timer -= dt;
       if (u.timer <= 0) {
@@ -387,44 +430,14 @@ export function updateUnicorns(dt: number) {
       dirx /= m;
       diry /= m;
     }
-    // The leprechaun spooks rather than steers: getting within his radius
-    // starts a short flee straight away from him, held for its own timer
-    // rather than recomputed toward the old waypoint every frame — that's
-    // what makes it read as "spooked off for a bit" instead of hugging an
-    // invisible wall around him. Camping the unicorn's own destination still
-    // beats it, so he can never permanently shield a flower.
-    if (u.state !== UnicornState.Scared) {
-      if (u.spookTimer > 0) {
-        u.spookTimer -= dt;
-      } else {
-        const camping = Math.hypot(u.wx - lep.x, u.wy - lep.y) < LEP_RADIUS;
-        const dLep = Math.hypot(u.x - lep.x, u.y - lep.y);
-        if (!camping && dLep < LEP_RADIUS + AVOID_MARGIN) {
-          u.spookTimer = LEP_SPOOK_TIME;
-          sfx(Sfx.Block);
-          // Dropping whatever it was walking toward is what sells the
-          // encounter as a redirect: resuming the same flower or wander spot
-          // afterward would just look like a pause. Leave/Lured are left
-          // alone — they're re-asserted every frame by their own logic, so
-          // overriding them here would only fight it.
-          if (
-            u.state === UnicornState.Wander ||
-            u.state === UnicornState.Target
-          ) {
-            u.target = undefined;
-            u.state = UnicornState.Wander;
-            setWaypoint(u, openPoint());
-          }
-        }
-      }
-      if (u.spookTimer > 0) {
-        const fx = u.x - lep.x;
-        const fy = u.y - lep.y;
-        const fd = Math.hypot(fx, fy) || 1;
-        dirx = fx / fd;
-        diry = fy / fd;
-        lep.blocking = true;
-      }
+    // the flee heading itself, overriding the waypoint for as long as the
+    // timer set above runs
+    if (u.state !== UnicornState.Scared && u.spookTimer > 0) {
+      const fx = u.x - lep.x;
+      const fy = u.y - lep.y;
+      const fd = Math.hypot(fx, fy) || 1;
+      dirx = fx / fd;
+      diry = fy / fd;
     }
     // beds are just clumps of flowers now, not obstacles — a unicorn walks
     // straight across one like any other patch of lawn
