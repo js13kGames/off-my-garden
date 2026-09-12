@@ -14,6 +14,22 @@ export function setBusy(b: boolean) {
   busy = b;
 }
 
+// Tutorial gating. TOOL_ALL enables everything, TOOL_NONE nothing, and any
+// other value only that one tool index. The toolbar is the single choke point
+// for both pointer and keyboard tool use, so one gate covers both inputs.
+export const TOOL_ALL = -1;
+export const TOOL_NONE = -2;
+let gate = TOOL_ALL;
+
+export function setToolGate(g: number) {
+  gate = g;
+}
+
+const gated = (i: number) => gate !== TOOL_ALL && gate !== i;
+// A gate other than TOOL_ALL means the tutorial is driving: practice tools are
+// free, so missed tries can't strand the player at 0 coins with no way on.
+const cost = (i: number) => (gate === TOOL_ALL ? PRICES[i] : 0);
+
 // Buttons sit in the strip below the playfield, evenly spaced with side margins
 const BTN_W = 104;
 const BTN_H = 44;
@@ -35,10 +51,10 @@ export function toolbarTap(x: number, y: number): number {
   for (let i = 0; i < TOOLS.length; i++) {
     const bx = btnX(i);
     if (x >= bx && x <= bx + BTN_W) {
-      if (busy || getCoins() < PRICES[i]) {
+      if (busy || gated(i) || getCoins() < cost(i)) {
         return -1;
       }
-      spendCoins(PRICES[i]);
+      spendCoins(cost(i));
       return i;
     }
   }
@@ -48,8 +64,14 @@ export function toolbarTap(x: number, y: number): number {
 /** Keyboard shortcut: digit is 1-based (1/2/3), anything else ignored. */
 export function toolbarKey(digit: number) {
   const i = digit - 1;
-  if (digit >= 1 && digit <= TOOLS.length && !busy && getCoins() >= PRICES[i]) {
-    spendCoins(PRICES[i]);
+  if (
+    digit >= 1 &&
+    digit <= TOOLS.length &&
+    !busy &&
+    !gated(i) &&
+    getCoins() >= cost(i)
+  ) {
+    spendCoins(cost(i));
     pending = i;
   }
 }
@@ -62,12 +84,17 @@ export function takePending(): number {
   return t;
 }
 
+/** Centre of a tool button, for tutorial highlights. */
+export function toolButtonCenter(i: number) {
+  return { x: btnX(i) + BTN_W / 2, y: BTN_Y + BTN_H / 2 };
+}
+
 export function drawToolbar() {
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   for (let i = 0; i < TOOLS.length; i++) {
     const x = btnX(i);
-    const afford = getCoins() >= PRICES[i];
+    const afford = getCoins() >= cost(i) && !gated(i);
     // button plate
     ctx.fillStyle = afford ? "#2a4a73" : "#16283f";
     ctx.beginPath();

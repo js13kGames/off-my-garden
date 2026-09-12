@@ -201,6 +201,11 @@ const enum FlowerState {
   Gone,
 }
 
+// Growth thresholds shared by the sprite stages (below) and the tutorial,
+// which stops its accelerated demonstration one stage before the bloom.
+export const STAGE_BUD = 0.33;
+export const STAGE_BLOOM = 0.66;
+
 export type Flower = {
   x: number;
   y: number;
@@ -471,7 +476,7 @@ function drawFlower(f: Flower, time: number) {
   ctx.lineTo(0, 4 - stem);
   ctx.stroke();
   const top = 4 - stem;
-  if (g < 0.33) {
+  if (g < STAGE_BUD) {
     // sprout: tiny leaf
     ctx.fillStyle = "#3c9a3c";
     ctx.beginPath();
@@ -479,7 +484,7 @@ function drawFlower(f: Flower, time: number) {
     ctx.fill();
   } else {
     // bud → bloom: petals scale up with growth
-    const size = g < 0.66 ? 2.5 : 3 + 3 * g;
+    const size = g < STAGE_BLOOM ? 2.5 : 3 + 3 * g;
     if (ripe) {
       // ripe halo: a soft pulsing glow behind the head — the "tap me" tell that
       // survives any petal hue, unlike motion alone
@@ -489,7 +494,7 @@ function drawFlower(f: Flower, time: number) {
       ctx.arc(0, top, size * (1.9 + 0.35 * p), 0, 7);
       ctx.fill();
     }
-    ctx.fillStyle = `hsl(${f.hue},80%,${g < 0.66 ? 45 : 60}%)`;
+    ctx.fillStyle = `hsl(${f.hue},80%,${g < STAGE_BLOOM ? 45 : 60}%)`;
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
       ctx.beginPath();

@@ -58,6 +58,15 @@ export function getCoins(): number {
   return coins;
 }
 
+// Back to a fresh run's state — the tutorial restore uses this so practice
+// harvests can't carry coins or rainbow progress into real play.
+export function resetHud() {
+  coins = PRICES[0] + PRICES[1];
+  rainbowFill = 0;
+  arcT = -1;
+  pops.length = 0;
+}
+
 export function spendCoins(n: number) {
   coins = Math.max(0, coins - n);
 }

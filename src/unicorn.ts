@@ -144,9 +144,10 @@ function nearestFlowerIn(u: Unicorn, list: Bed[], maxDist: number) {
 }
 
 // The wave manager decides when and how nervous — this just picks an entry
-// point and rolls a fresh unicorn onto it.
-export function spawnUnicorn(nervous: boolean) {
-  const s = SPAWNS[(Math.random() * SPAWNS.length) | 0];
+// point and rolls a fresh unicorn onto it. An explicit `at` overrides the
+// random entry pick (the tutorial's practice uni enters at a fixed spot).
+export function spawnUnicorn(nervous: boolean, at?: { x: number; y: number }) {
+  const s = at ?? SPAWNS[(Math.random() * SPAWNS.length) | 0];
   unicorns.push({
     x: s.x,
     y: s.y,
@@ -162,6 +163,9 @@ export function spawnUnicorn(nervous: boolean) {
     spookTimer: 0,
   });
 }
+
+// const enum stays module-local — this predicate is the outside query
+export const isScared = (u: Unicorn) => u.state === UnicornState.Scared;
 
 // Scare every unicorn the noise ring has reached so far. The caller sweeps
 // with the expanding circle radius (see noise.ts), so a uni is only hit at

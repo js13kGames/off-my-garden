@@ -8,12 +8,15 @@ const SPEED = 110;
 // weaker than a repellent, so it stays a detour rather than a wall.
 export const LEP_RADIUS = 32;
 
+// Shared spawn point — the tutorial restore sends him back here too.
+export const LEP_START = { x: 180, y: 500 };
+
 export const lep = {
   // below the centred title/end cards so he's never hidden behind one
-  x: 180,
-  y: 500,
-  tx: 180,
-  ty: 500,
+  x: LEP_START.x,
+  y: LEP_START.y,
+  tx: LEP_START.x,
+  ty: LEP_START.y,
   moving: false,
   // set each frame by updateUnicorns; drives the ring below so it only shows
   // up on the frames it's actually doing something

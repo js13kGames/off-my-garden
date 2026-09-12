@@ -15,6 +15,7 @@ import {
   FIELD_TOP,
   gardenStumped,
   harvestAtPosition,
+  resetGarden,
   sellAt,
   updateGarden,
 } from "./garden";
@@ -24,9 +25,10 @@ import {
   musicButtonTap,
   rainbowArcFinished,
   rainbowDone,
+  resetHud,
   updateHud,
 } from "./hud";
-import { drawLep, lep, sendLepTo, updateLep } from "./leprechaun";
+import { drawLep, LEP_START, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
 import { setTrack, startMusic, Track, toggleMusic, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
@@ -40,16 +42,33 @@ import { drawRain, updateRain } from "./rain";
 import {
   drawToolbar,
   setBusy,
+  setToolGate,
+  TOOL_ALL,
   takePending,
   toolbarKey,
   toolbarTap,
 } from "./toolbar";
-import { drawUnicorns, updateUnicorns } from "./unicorn";
+import {
+  begin,
+  completeTutorial,
+  draw as drawTutorialPanel,
+  flowersShown,
+  harvested,
+  harvestingOn,
+  isFinished,
+  moved,
+  toolUsed,
+  tutorialCompleted,
+  tap as tutorialTap,
+  update as tutorialUpdate,
+} from "./tutorial";
+import { drawUnicorns, unicorns, updateUnicorns } from "./unicorn";
 import { unicornsSeen, updateWaves } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
   Idle,
+  Tutorial, // guided first run — practice garden, no unicorns, no win/loss
   Playing,
   Won, // rainbow complete — sim frozen, input ignored
   Lost, // every flower stumped — sim frozen, rain falls, tap restarts
@@ -74,15 +93,55 @@ function useTool(tool: number) {
   }
 }
 
-addEventListener("keydown", (e) => {
-  if (e.code === "Space" && state === State.Idle) {
-    startMusic();
+// Shared entry for the pointer and keyboard starts. The first play goes
+// through the tutorial; once it's completed, runs start straight in the
+// garden. The Tutorial button always replays the lesson.
+function startRun(fromTutorialButton: boolean) {
+  startMusic();
+  if (fromTutorialButton || !tutorialCompleted()) {
+    begin();
+    state = State.Tutorial;
+  } else {
     state = State.Playing;
+  }
+}
+
+// Practice is over: put every system back to its fresh-run state so normal
+// play starts from the same conditions as a non-tutorial run.
+function finishTutorial() {
+  completeTutorial();
+  resetGarden();
+  unicorns.length = 0; // the practice uni would trample the fresh garden uncounted
+  lep.x = lep.tx = LEP_START.x;
+  lep.y = lep.ty = LEP_START.y;
+  lep.moving = false;
+  lep.blocking = false;
+  resetHud();
+  setBusy(false);
+  takePending();
+  setToolGate(TOOL_ALL);
+  state = State.Playing;
+}
+
+addEventListener("keydown", (e) => {
+  if (e.code === "Space" || e.key === "Enter") {
+    if (state === State.Idle) {
+      startRun(false);
+    } else if (
+      state === State.Lost ||
+      (state === State.Won && rainbowArcFinished())
+    ) {
+      location.reload();
+    }
   }
   if (e.key === "m" || e.key === "M") {
     toggleMusic();
   }
-  if (e.key >= "1" && e.key <= "3" && state === State.Playing) {
+  if (
+    e.key >= "1" &&
+    e.key <= "3" &&
+    (state === State.Playing || state === State.Tutorial)
+  ) {
     toolbarKey(Number(e.key));
   }
 });
@@ -105,7 +164,38 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   if (state === State.Idle) {
-    state = State.Playing;
+    const button = titleButtonTap(p.x, p.y);
+    if (button >= 0) {
+      startRun(button === 1);
+    }
+    return;
+  }
+  if (state === State.Tutorial) {
+    // Continue buttons are consumed here so they can't fall through to
+    // movement or tool use.
+    if (tutorialTap(p.x, p.y)) {
+      return;
+    }
+    const tool = toolbarTap(p.x, p.y);
+    if (tool >= 0) {
+      useTool(tool);
+      toolUsed(tool);
+      return;
+    }
+    // harvesting only unlocks with its lesson; out-of-range or early taps
+    // keep their normal movement behaviour
+    if (harvestingOn()) {
+      const f = sellAt(p.x, p.y, lep.x, lep.y);
+      if (f) {
+        addCoins(f.x, f.y);
+        harvested();
+        return; // sell taps are consumed — he stays where he is
+      }
+    }
+    if (p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
+      sendLepTo(p.x, p.y);
+      moved();
+    }
     return;
   }
   const tool = toolbarTap(p.x, p.y);
@@ -135,6 +225,25 @@ start(
     if (state === State.Lost) {
       updateRain(dt); // keeps the storm ramping/falling
       updateHud(dt); // lets any in-flight coin pop finish fading
+      return;
+    }
+    if (state === State.Tutorial) {
+      time += dt;
+      tutorialUpdate(dt);
+      if (!isRingBusy()) {
+        setBusy(false);
+      }
+      // keyboard tool use rides the same gate as taps, so only the lesson's
+      // tool can fire
+      const kb = takePending();
+      if (kb >= 0) {
+        useTool(kb);
+        toolUsed(kb);
+      }
+      updateHud(dt);
+      if (isFinished()) {
+        finishTutorial();
+      }
       return;
     }
     if (state !== State.Playing) {
@@ -179,7 +288,11 @@ start(
     ctx.rect(0, 0, VIEW_W, VIEW_H);
     ctx.clip();
     drawLawn();
-    drawGarden(time);
+    // the movement lesson shows a bare lawn — flowers appear with the
+    // growth lesson
+    if (state !== State.Tutorial || flowersShown()) {
+      drawGarden(time);
+    }
     drawPlaceables(time);
     drawUnicorns(time);
     drawNoise();
@@ -196,7 +309,9 @@ start(
     ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawHud();
     drawToolbar();
-    if (state === State.Idle) {
+    if (state === State.Tutorial) {
+      drawTutorialPanel(time); // instruction panel paints over everything
+    } else if (state === State.Idle) {
       drawTitleCard();
     } else if (state === State.Won) {
       drawEndCard(true);
@@ -219,8 +334,41 @@ function drawCard(w: number, h: number): number {
   return y;
 }
 
+// Title card geometry, shared by drawing and hit-testing. Two stacked
+// buttons: Play (or Space) and an always-available Tutorial replay.
+const TITLE_CARD_H = 250;
+const TITLE_BTN_W = 150;
+const TITLE_BTN_H = 32;
+const TITLE_BTN_X = (VIEW_W - TITLE_BTN_W) / 2;
+const TITLE_PLAY_Y = (VIEW_H - TITLE_CARD_H) / 2 + 168;
+const TITLE_TUT_Y = TITLE_PLAY_Y + 40;
+
+/** Returns 0 for Play, 1 for Tutorial, -1 for a miss. */
+function titleButtonTap(x: number, y: number): number {
+  if (x < TITLE_BTN_X || x > TITLE_BTN_X + TITLE_BTN_W) {
+    return -1;
+  }
+  if (y >= TITLE_PLAY_Y && y <= TITLE_PLAY_Y + TITLE_BTN_H) {
+    return 0;
+  }
+  if (y >= TITLE_TUT_Y && y <= TITLE_TUT_Y + TITLE_BTN_H) {
+    return 1;
+  }
+  return -1;
+}
+
+function titleButton(label: string, y: number) {
+  ctx.fillStyle = "#2a4a73";
+  ctx.beginPath();
+  ctx.roundRect(TITLE_BTN_X, y, TITLE_BTN_W, TITLE_BTN_H, 8);
+  ctx.fill();
+  ctx.fillStyle = "#ffd54a";
+  ctx.font = "bold 14px sans-serif";
+  ctx.fillText(label, VIEW_W / 2, y + 21);
+}
+
 function drawTitleCard() {
-  const y = drawCard(280, 200);
+  const y = drawCard(280, TITLE_CARD_H);
   ctx.fillStyle = "#7cffb0";
   ctx.font = "bold 22px sans-serif";
   ctx.fillText("OFF MY LAWN!", VIEW_W / 2, y + 38);
@@ -239,9 +387,8 @@ function drawTitleCard() {
     ctx.fillText(line, (VIEW_W - 280) / 2 + 22, y + 98 + i * 26);
   });
   ctx.textAlign = "center";
-  ctx.fillStyle = "#ffd54a";
-  ctx.font = "13px sans-serif";
-  ctx.fillText("tap to start", VIEW_W / 2, y + 180);
+  titleButton("PLAY", TITLE_PLAY_Y);
+  titleButton("TUTORIAL", TITLE_TUT_Y);
 }
 
 // Picked once per page load — a restart is a reload, so each run gets one.
@@ -292,8 +439,10 @@ function drawEndCard(won: boolean) {
   ctx.fillText(won ? "YOU WIN!" : "GAME OVER", VIEW_W / 2, y + 32);
   ctx.fillStyle = "#fff";
   ctx.font = "14px sans-serif";
-  lines.forEach((line, i) => ctx.fillText(line, VIEW_W / 2, y + 64 + i * 21));
+  lines.forEach((line, i) => {
+    ctx.fillText(line, VIEW_W / 2, y + 64 + i * 21);
+  });
   ctx.fillStyle = "#ffd54a";
   ctx.font = "13px sans-serif";
-  ctx.fillText("tap to restart", VIEW_W / 2, y + 133);
+  ctx.fillText("tap or press Space to restart", VIEW_W / 2, y + 133);
 }
