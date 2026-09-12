@@ -304,5 +304,14 @@ export function drawHud(canReset: boolean) {
     ctx.strokeText(`+${p.gain}`, p.x, y - 14);
     ctx.fillStyle = `hsla(${p.hue},90%,65%,${k})`;
     ctx.fillText(`+${p.gain}`, p.x, y - 14);
+    // Chained harvests say so in words under the two numbers, so the
+    // multiplier is legible without reading it off the amounts.
+    if (p.gain > 1) {
+      ctx.font = "bold 11px sans-serif";
+      const label = p.gain > 2 ? `COMBO ×${p.gain}` : "COMBO";
+      ctx.strokeText(label, p.x, y + 14);
+      ctx.fillText(label, p.x, y + 14);
+      ctx.font = "bold 13px sans-serif";
+    }
   }
 }
