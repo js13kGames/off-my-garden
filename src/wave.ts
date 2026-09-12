@@ -13,7 +13,8 @@ function spawnEveryFor(wave: number) {
   return Math.max(1.2, 4 - (wave - 1) * 0.25);
 }
 function nervousChanceFor(wave: number) {
-  return Math.min(0.35 + (wave - 1) * 0.08, 0.9);
+  // wave 1 is all calm unicorns — the player is still learning the controls
+  return wave < 2 ? 0 : Math.min(0.35 + (wave - 2) * 0.08, 0.9);
 }
 
 let wave = 1;
