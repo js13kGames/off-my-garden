@@ -27,7 +27,10 @@ const pops: Popup[] = [];
 // harvests pays up to 3 a pop, which is how a good player actually gets there.
 const POINTS_PER_RAINBOW = 30;
 const COMBO_CAP = 3;
-let rainbowFill = 0; // 0..1
+// Whole points, not a 0..1 fraction: summing gain/30 fractions drifts below 1
+// (30 lone blooms used to land on 0.9999999999999999 and never win), so the
+// threshold compares integers and the meter divides only for drawing.
+let rainbowPoints = 0;
 const ARC_TIME = 2; // seconds the draw-in animation takes
 let arcT = -1; // seconds since the rainbow was won, -1 = not yet won
 let comboHue = -1; // hue of the last harvest, -1 = no chain running
@@ -52,9 +55,8 @@ export function addCoins(
   if (practice || arcT >= 0) {
     return; // tutorial, or already won — meter stays as it is
   }
-  rainbowFill += gain / POINTS_PER_RAINBOW;
-  if (rainbowFill >= 1) {
-    rainbowFill = 1;
+  rainbowPoints += gain;
+  if (rainbowPoints >= POINTS_PER_RAINBOW) {
     arcT = 0;
   }
 }
@@ -87,7 +89,7 @@ export function getCoins(): number {
 // harvests can't carry coins or rainbow progress into real play.
 export function resetHud() {
   coins = PRICES[0] + PRICES[1];
-  rainbowFill = 0;
+  rainbowPoints = 0;
   arcT = -1;
   combo = 0;
   comboHue = -1;
@@ -134,7 +136,7 @@ function drawMeter() {
   ctx.beginPath();
   ctx.roundRect(METER_X, 13, METER_W, METER_H, 7);
   ctx.fill();
-  const fillW = METER_W * rainbowFill;
+  const fillW = METER_W * Math.min(1, rainbowPoints / POINTS_PER_RAINBOW);
   if (fillW > 0) {
     ctx.fillStyle = rainbowGradient(METER_X, METER_X + METER_W);
     ctx.beginPath();
