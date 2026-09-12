@@ -76,6 +76,12 @@ const enum State {
 }
 let state: State = State.Idle;
 let time = 0;
+// Seconds the loss card has been up. The win card gates its restart on the
+// rainbow reveal; the loss card has no animation to wait for, so it holds a
+// fixed beat instead — long enough that the tap that lost the run can't
+// bounce straight off the card.
+const LOSS_HOLD = 2;
+let lostFor = 0;
 
 // Tools all work the same way: the button fires them where the leprechaun
 // stands, so placing him is the whole decision. The toolbar has already spent
@@ -131,6 +137,7 @@ function resetRun() {
   setBusy(false);
   setToolGate(TOOL_ALL);
   time = 0;
+  lostFor = 0;
   variant = (Math.random() * 3) | 0; // fresh end-card wording per run
   setTrack(Track.Play);
 }
@@ -165,8 +172,11 @@ canvas.addEventListener("pointerdown", (e) => {
     return; // ignore taps mid-reveal so the win can't be dismissed early
   }
   if (state === State.Lost) {
-    resetRun();
-    state = State.Idle;
+    // ignore taps during the hold so a tap aimed at the garden can't skip the card
+    if (lostFor >= LOSS_HOLD) {
+      resetRun();
+      state = State.Idle;
+    }
     return;
   }
   if (state === State.Idle) {
@@ -229,6 +239,7 @@ start(
       return;
     }
     if (state === State.Lost) {
+      lostFor += dt;
       updateRain(dt); // keeps the storm ramping/falling
       updateHud(dt); // lets any in-flight coin pop finish fading
       return;
@@ -437,7 +448,10 @@ function drawEndCard(won: boolean) {
   lines.forEach((line, i) => {
     ctx.fillText(line, VIEW_W / 2, y + 64 + i * 21);
   });
-  ctx.fillStyle = "#ffd54a";
-  ctx.font = "13px sans-serif";
-  ctx.fillText("tap to restart", VIEW_W / 2, y + 133);
+  // the prompt appears only once the tap actually restarts
+  if (won || lostFor >= LOSS_HOLD) {
+    ctx.fillStyle = "#ffd54a";
+    ctx.font = "13px sans-serif";
+    ctx.fillText("tap to restart", VIEW_W / 2, y + 133);
+  }
 }
