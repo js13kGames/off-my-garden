@@ -35,6 +35,117 @@ function scatter(count: number, pick: () => { x: number; y: number }) {
   return points;
 }
 
+// Woodland crowding the four corners of the clearing. No sprites and no
+// per-tree data: the whole silhouette is a depth around the field perimeter,
+// weighted to the corners and wobbled by two sines whose frequencies (9 and 14)
+// never line up around the loop — so no two corners look like copies of each
+// other. The edge midruns stay bare so the lawn keeps its open sides.
+const CANOPY_STEPS = 160;
+const CANOPY_CORNER = 60; // depth at a corner; falls to nothing by mid-edge
+const CANOPY_WOBBLE = 6;
+// Crowns swell and shrink this many times around the loop, so neighbouring
+// circles differ in size and the union bulges instead of tracing a smooth
+// offset. It has to stay well above the two depth frequencies: a corner is only
+// ~80 px of a 1800 px perimeter, and a lobe longer than that leaves the corner
+// a straight 45° chamfer.
+const CANOPY_LOBE = 29;
+// Floor on the crown radius: along the thin edge midruns the depth alone would
+// give circles too small to overlap at this step spacing, and the union would
+// break into beads. Their centres just sit further outside the field instead.
+const CANOPY_MIN_R = 12;
+// How much deeper than wide each crown is
+const CANOPY_BULGE = 1.45;
+
+// Stamps one pass of crowns as overlapping circles along the field perimeter,
+// at `scale` of full depth with the lobes shifted by `phase` so the passes
+// don't bulge in lockstep. All circles wind the same way and go into one path,
+// so a single nonzero fill unions them — no seams between neighbours, and the
+// only boundary left is the round-edged silhouette their outsides trace.
+function canopyPass(scale: number, phase: number, fill: string) {
+  ctx.fillStyle = fill;
+  ctx.beginPath();
+  const height = FIELD_BOTTOM - FIELD_TOP;
+  const perimeter = 2 * (VIEW_W + height);
+  for (let step = 0; step <= CANOPY_STEPS; step++) {
+    const fraction = step / CANOPY_STEPS;
+    const along = fraction * perimeter;
+    let x = 0;
+    let y = FIELD_TOP;
+    let nx = 0;
+    let ny = 0;
+    if (along < VIEW_W) {
+      x = along; // top edge, left to right, inward is down
+      ny = 1;
+    } else if (along < VIEW_W + height) {
+      x = VIEW_W; // right edge, downward
+      y = FIELD_TOP + along - VIEW_W;
+      nx = -1;
+    } else if (along < 2 * VIEW_W + height) {
+      x = 2 * VIEW_W + height - along; // bottom edge, right to left
+      y = FIELD_BOTTOM;
+      ny = -1;
+    } else {
+      y = FIELD_BOTTOM - (along - 2 * VIEW_W - height); // left edge, upward
+      nx = 1;
+    }
+    // field coords in -1..1; on the perimeter one of the two is always ±1, so
+    // their product is 0 at an edge midpoint and 1 at a corner. The 4th power
+    // is what keeps the trees in the corners: it has collapsed to 0.06 by the
+    // quarter mark, and everything below is scaled by it — wobble included, so
+    // the midruns can't sprout a stray crown.
+    const u = (x / VIEW_W) * 2 - 1;
+    const v = ((y - FIELD_TOP) / height) * 2 - 1;
+    const corner = (u * v) ** 4;
+    const angle = fraction * Math.PI * 2;
+    const depth =
+      scale *
+      corner *
+      (CANOPY_CORNER +
+        (CANOPY_WOBBLE * (Math.sin(angle * 9) + Math.sin(angle * 14 + 2))) / 2);
+    // How far this crown reaches into the field. The circle is then sized and
+    // placed so its inner rim lands exactly there, whatever the radius floor
+    // does to its centre.
+    const reach =
+      depth * (0.5 + 0.5 * Math.abs(Math.sin(angle * CANOPY_LOBE + phase)));
+    const radius = Math.max(CANOPY_MIN_R, reach * 0.8);
+    // Stretched along the normal, not across it: the width along the edge is
+    // pinned by the step spacing (shrink it and the union breaks up), so the
+    // extra bulge has to go inward, which is what makes each crown read as a
+    // round lobe instead of a shallow ripple.
+    const bulge = radius * CANOPY_BULGE;
+    const cx = x + nx * (reach - bulge);
+    const cy = y + ny * (reach - bulge);
+    // each crown its own subpath — without the moveTo, ellipse() would join to
+    // the previous one with a chord and fill the sliver behind it. The spur
+    // from the centre to the arc's start is retraced on the implicit close, so
+    // it encloses nothing and the fill ignores it.
+    ctx.moveTo(cx, cy);
+    // rotate a quarter turn on the side edges so the long axis follows the
+    // inward normal there too
+    ctx.ellipse(cx, cy, radius, bulge, nx ? Math.PI / 2 : 0, 0, 7);
+  }
+  ctx.fill();
+}
+
+// The corner trees, drawn last of all — over the grass, pebbles, flowers,
+// unicorns and the lep — because they overhang the ground rather than being
+// painted onto it: anything that wanders under them is shaded, and anything
+// under the crowns themselves is hidden.
+//
+// The shade goes down first and runs deepest, so what shows of it is the fringe
+// past the crowns falling on the lawn; the two opaque foliage passes then cover
+// the rest of it, a dark mass with lit crowns stacked on top toward the field
+// edge, so the corners have volume instead of reading as a flat vignette.
+// Crowns that spill
+// past the field edge are hidden by the HUD/toolbar strips and the viewport clip.
+// ponytail: static art redrawn every frame — bake it into an offscreen canvas
+// once if these fills ever show up in a profile.
+export function drawCanopy() {
+  canopyPass(1, 0, "rgba(0,0,0,0.38)");
+  canopyPass(0.7, 1.7, "#135e26");
+  canopyPass(0.4, 3.4, "#176b24");
+}
+
 export function drawLawn() {
   ctx.fillStyle = "#080";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);

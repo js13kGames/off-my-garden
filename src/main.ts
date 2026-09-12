@@ -8,6 +8,7 @@ import {
   VIEW_W,
 } from "./canvas";
 import {
+  drawCanopy,
   drawGarden,
   drawLawn,
   FIELD_BOTTOM,
@@ -179,18 +180,21 @@ start(
     ctx.rect(0, 0, VIEW_W, VIEW_H);
     ctx.clip();
     drawLawn();
-    // HUD and toolbar strips — filled in by later tickets
-    ctx.fillStyle = "#1d3557";
-    ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);
-    ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawGarden(time);
     drawPlaceables(time);
     drawUnicorns(time);
     drawNoise();
     drawLep(time);
+    drawCanopy(); // trees overhang everything on the ground
     if (state === State.Lost) {
       drawRain();
     }
+    // HUD and toolbar strips. Painted here rather than under the playfield: the
+    // canopy's crowns overhang the field edges, and these strips are what crops
+    // them back to it.
+    ctx.fillStyle = "#1d3557";
+    ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);
+    ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
     drawHud();
     drawToolbar();
     if (state === State.Idle) {
