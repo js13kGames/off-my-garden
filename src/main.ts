@@ -193,7 +193,9 @@ start(
     }
     drawHud();
     drawToolbar();
-    if (state === State.Won) {
+    if (state === State.Idle) {
+      drawTitleCard();
+    } else if (state === State.Won) {
       drawEndCard(true);
     } else if (state === State.Lost) {
       drawEndCard(false);
@@ -202,9 +204,8 @@ start(
   },
 );
 
-function drawEndCard(won: boolean) {
-  const w = 220;
-  const h = 120;
+/** Centred rounded panel shared by the title and end cards; returns its top y. */
+function drawCard(w: number, h: number): number {
   const x = (VIEW_W - w) / 2;
   const y = (VIEW_H - h) / 2;
   ctx.fillStyle = "rgba(10,15,30,0.85)";
@@ -212,6 +213,36 @@ function drawEndCard(won: boolean) {
   ctx.roundRect(x, y, w, h, 10);
   ctx.fill();
   ctx.textAlign = "center";
+  return y;
+}
+
+function drawTitleCard() {
+  const y = drawCard(280, 200);
+  ctx.fillStyle = "#7cffb0";
+  ctx.font = "bold 22px sans-serif";
+  ctx.fillText("OFF MY LAWN!", VIEW_W / 2, y + 38);
+  ctx.fillStyle = "#fff";
+  ctx.font = "14px sans-serif";
+  ctx.fillText("Keep the unicorns off it.", VIEW_W / 2, y + 62);
+  // Emoji-led one-liners: threat, action, goal — the whole loop in three reads.
+  ctx.textAlign = "left";
+  ctx.font = "13px sans-serif";
+  const lines = [
+    "\u{1F984}  They stomp your flowers",
+    "\u{1F338}  Tap a bloom to harvest it",
+    "\u{1F308}  Harvest enough for a rainbow",
+  ];
+  lines.forEach((line, i) => {
+    ctx.fillText(line, (VIEW_W - 280) / 2 + 22, y + 98 + i * 26);
+  });
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#ffd54a";
+  ctx.font = "13px sans-serif";
+  ctx.fillText("tap to start", VIEW_W / 2, y + 180);
+}
+
+function drawEndCard(won: boolean) {
+  const y = drawCard(220, 120);
   ctx.fillStyle = won ? "#7cffb0" : "#ff6b6b";
   ctx.font = "bold 20px sans-serif";
   ctx.fillText(won ? "YOU WIN!" : "GAME OVER", VIEW_W / 2, y + 32);

@@ -9,10 +9,11 @@ const SPEED = 110;
 export const LEP_RADIUS = 32;
 
 export const lep = {
+  // below the centred title/end cards so he's never hidden behind one
   x: 180,
-  y: 400,
+  y: 500,
   tx: 180,
-  ty: 400,
+  ty: 500,
   moving: false,
   // set each frame by updateUnicorns; drives the ring below so it only shows
   // up on the frames it's actually doing something
