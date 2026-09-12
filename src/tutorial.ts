@@ -16,18 +16,48 @@ import { setToolGate, TOOL_NONE, toolButtonCenter } from "./toolbar";
 import { isScared, spawnUnicorn, unicorns, updateUnicorns } from "./unicorn";
 
 // module-local: an exported const enum would stop erasing under isolatedModules
+// One entry per panel — the lessons that used to hold two panels (rewards,
+// tools) are two steps, so there is no sub-phase to track anywhere.
 const enum Step {
   Move,
   Grow,
   Harvest,
-  Rewards,
+  Coins,
+  Rainbow,
   Threat,
+  Noise,
   Tools,
   Danger, // the losing condition, on its own so it doesn't ride along with a tip
   Ready,
 }
 
-const STEP_COUNT = 8;
+// Panel text, indexed by step. Newlines are the line breaks, kept by hand so
+// the wrapping is the same on every device.
+const LESSONS = [
+  "Tap the screen to move.",
+  "Flowers grow over time.\nBlooms are ready to be picked.",
+  "Collect flowers by tapping or\nwalking through them.\nMove close before tapping a bloom.",
+  "Flowers earn coins for tools.\nSame colour in a row pays more.",
+  "Fill the rainbow to win!",
+  "Unicorns trample your flowers.\nMove near unicorns to push them away.\nTry it now.",
+  "Tap noise to send them back.\nUse when close to a unicorn.\nTry it!",
+  "Repel protects a patch.\nAttract lures unicorns away.\nWater makes flowers grow faster.",
+  // the one lesson about losing — kept on its own panel so it isn't read as
+  // another tip. Wording tracks gardenStumped()'s "most of what's left".
+  "Careful: if unicorns trample most\nof the garden, it's game over.\nRain gathers when ruin is close.\nPicked flowers are safe: harvest early!",
+  "Harvest flowers,  complete your rainbow.\nFresh flowers grow each season.",
+];
+
+// Steps that wait for a click to continue; the rest advance on a real action
+// (a move, a harvest, a push, a noise ring landing).
+const HINT_STEPS = [Step.Coins, Step.Rainbow, Step.Tools, Step.Danger];
+
+// Seconds between a lesson's trigger and its panel showing — the world reacts
+// first, the explanation follows a beat later. 0 where the new panel must read
+// as the same beat as the one before it, and on harvest so its just-blooming
+// flower can still be collected while the panel is up.
+const REVEAL = [0, 1, 0, 0.5, 0, 1, 1, 0, 0.5, 0.5];
+
 // The growth lesson runs the garden clock 5x so the demonstration flowers
 // reach the pre-bloom stage in ~2.5 s instead of the ~13 s a real season takes.
 const GROWTH_ACCEL = 5;
@@ -58,26 +88,13 @@ export function completeTutorial() {
 }
 
 let step = Step.Move;
-let phase = 0; // sub-step inside the two-panel lessons (Rewards, Tools)
 let finished = false;
 let demo: Flower | undefined; // flower the growth/harvest lessons point at
 let awaitRing = false; // Noise has fired — waiting for the ring to finish
-// Seconds between a lesson's trigger and its panel showing — the world reacts
-// first, the explanation follows a beat later. Steps left out of the table use
-// the default; the harvest lesson skips the wait so its just-blooming flower
-// can be collected while the panel is up.
-const DEFAULT_REVEAL = 1;
-const REVEAL_DELAYS: Partial<Record<Step, number>> = {
-  [Step.Harvest]: 0,
-  [Step.Rewards]: 0.5, // harvest → rewards reads as one beat, not a new scene
-  [Step.Danger]: 0.5, // tools → danger ditto
-  [Step.Ready]: 0.5, // danger → ready ditto
-};
 let revealDelay = 0;
 
 export function begin() {
   step = Step.Move;
-  phase = 0;
   finished = false;
   demo = undefined;
   awaitRing = false;
@@ -102,32 +119,31 @@ export const harvestingOn = () => step >= Step.Harvest;
 // The lesson points at the flower nearest the gardener, so the walk from the
 // spawn point to the target is short.
 function pickDemo() {
-  let best: Flower | undefined;
   let bestDist = Infinity;
   for (const bed of beds) {
     for (const f of bed) {
       const d = Math.hypot(f.x - lep.x, f.y - lep.y);
       if (d < bestDist) {
         bestDist = d;
-        best = f;
+        demo = f;
       }
     }
   }
-  demo = best;
 }
 
 function advance() {
   step++;
-  phase = 0;
-  revealDelay = REVEAL_DELAYS[step] ?? DEFAULT_REVEAL;
+  revealDelay = REVEAL[step];
   if (step === Step.Grow) {
     pickDemo();
   } else if (step === Step.Threat) {
     // one calm unicorn to practise on — the lesson's "try it now" needs a
     // live target, and waves stay off during the tutorial
     spawnUnicorn(false, PRACTICE_ENTRY);
-  } else if (step === Step.Tools) {
+  } else if (step === Step.Noise) {
     setToolGate(0); // Noise only, until the lesson has fired it
+  } else if (step === Step.Danger) {
+    setToolGate(TOOL_NONE); // lesson over — tools lock up again for practice
   }
 }
 
@@ -159,10 +175,7 @@ export function update(dt: number) {
   }
   // both unicorn lessons need a live target — if the practice uni wanders off
   // the field, roll a fresh one in at the fixed entry so they stay completable
-  if (
-    (step === Step.Threat || (step === Step.Tools && phase === 0)) &&
-    !unicorns.length
-  ) {
+  if ((step === Step.Threat || step === Step.Noise) && !unicorns.length) {
     spawnUnicorn(false, PRACTICE_ENTRY);
   }
   if (awaitRing) {
@@ -170,7 +183,7 @@ export function update(dt: number) {
     // be spliced before the ring finishes, and the respawn above would hide it
     if (unicorns.some(isScared)) {
       awaitRing = false;
-      phase = 1; // the ring reached a unicorn — now explain Repel and Attract
+      advance(); // the ring reached a unicorn — now explain Repel and Attract
     } else if (!isRingBusy()) {
       awaitRing = false; // it went off too far away — the lesson waits for another try
     }
@@ -195,23 +208,8 @@ export function harvested() {
 }
 
 export function toolUsed(tool: number) {
-  if (step === Step.Tools && phase === 0 && tool === 0) {
+  if (step === Step.Noise && tool === 0) {
     awaitRing = true;
-  }
-}
-
-function doContinue() {
-  if (step === Step.Rewards) {
-    if (phase === 0) {
-      phase = 1; // coins explained — now the rainbow meter
-    } else {
-      advance();
-    }
-  } else if (step === Step.Tools && phase === 1) {
-    setToolGate(TOOL_NONE); // lesson over — tools lock up again for practice
-    advance();
-  } else if (step === Step.Danger) {
-    advance();
   }
 }
 
@@ -225,25 +223,30 @@ const PAD = 12;
 const HINT = "(click to continue)";
 const START = "Start Playing";
 
+type Rect = { x: number; y: number; w: number; h: number };
+const inside = (r: Rect | null, x: number, y: number) =>
+  !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
 // Rect of the last-drawn Start button, for hit-testing in tap().
-let startRect: { x: number; y: number; w: number; h: number } | null = null;
+let startRect: Rect | null = null;
 export const startButtonRect = () => startRect;
 
 // The panel's rect from the last draw — only recorded on lessons that wait
 // for a click, so "the whole message is the button" can't skip the
 // success-gated lessons (growth, harvest, threat, noise).
-let panelRect: { x: number; y: number; w: number; h: number } | null = null;
+let panelRect: Rect | null = null;
+/** Panel rect from the last draw — lets tap check against what is actually
+ * on screen, and lets the regression check drive the click-to-continue. */
+export const continueRect = () => panelRect;
 
 export function tap(x: number, y: number): boolean {
-  const s = startRect;
-  if (s && x >= s.x && x <= s.x + s.w && y >= s.y && y <= s.y + s.h) {
+  if (inside(startRect, x, y)) {
     startRect = null; // main.ts resets practice state and starts the run
     finished = true;
     return true;
   }
-  const b = panelRect;
-  if (b && x >= b.x && x <= b.x + b.w && y >= b.y && y <= b.y + b.h) {
-    doContinue();
+  if (inside(panelRect, x, y)) {
+    advance();
     return true;
   }
   // the growth lesson advances by tapping anywhere — but only once the
@@ -255,12 +258,6 @@ export function tap(x: number, y: number): boolean {
   }
   return false;
 }
-
-/** Panel rect from the last draw — lets tap check against what is actually
- * on screen, and lets the regression check drive the click-to-continue. */
-export const continueRect = () => panelRect;
-
-type Target = { x: number; y: number; r: number };
 
 // Bobbing chevron that points at the spot it marks — from below for targets
 // up in the HUD strip, otherwise hovering above and pointing down.
@@ -280,105 +277,25 @@ function drawArrow(tx: number, ty: number, time: number) {
   ctx.stroke();
 }
 
-function lesson(): {
-  lines: string[];
-  hint?: boolean;
-  start?: boolean;
-  target?: Target;
-  offsetY?: number;
-} {
+// What the attention arrow points at on this step, if anything. Anything with
+// x/y will do, so live entities are handed over as they are.
+function arrowTarget(): { x: number; y: number } | undefined {
   switch (step) {
-    case Step.Move:
-      return { lines: ["Tap the screen to move."] };
-    case Step.Grow:
-      return {
-        lines: ["Flowers grow over time.", "Blooms are ready to be picked."],
-      };
     case Step.Harvest:
-      return {
-        lines: [
-          "Collect flowers by tapping or",
-          "walking through them.",
-          "Move close before tapping a bloom.",
-        ],
-        // arrow only once the demonstration flower is actually ripe —
-        // STAGE_BLOOM is when petals appear, but the pulsing "tap me" halo
-        // (and picking) only start at growth 1
-        target:
-          demo && demo.growth >= 1
-            ? { x: demo.x, y: demo.y, r: 30 }
-            : undefined,
-      };
-    case Step.Rewards:
-      // the HUD targets' arrows sit just under the panel's default spot, so
-      // the box drops 20px to leave them visible
-      return phase === 0
-        ? {
-            lines: [
-              "Flowers earn coins for tools.",
-              "Same colour in a row pays more.",
-            ],
-            target: { x: 40, y: 20, r: 20 }, // coin counter
-            hint: true,
-            offsetY: 20,
-          }
-        : {
-            lines: ["Fill the rainbow to win!"],
-            target: { x: 196, y: 20, r: 22 }, // rainbow meter
-            hint: true,
-            offsetY: 20,
-          };
-    case Step.Threat: {
-      // the arrow marks the practice unicorn — "try it now" points at it
-      const u = unicorns[0];
-      return {
-        lines: [
-          "Unicorns trample your flowers.",
-          "Move near unicorns to push them away.",
-          "Try it now.",
-        ],
-        target: u ? { x: u.x, y: u.y, r: 30 } : { x: lep.x, y: lep.y, r: 30 },
-      };
-    }
-    case Step.Tools:
-      return phase === 0
-        ? {
-            lines: [
-              "Tap noise to send them back.",
-              "Use when close to a unicorn.",
-              "Try it!",
-            ],
-            target: { ...toolButtonCenter(0), r: 30 },
-          }
-        : {
-            lines: [
-              "Repel protects a patch.",
-              "Attract lures unicorns away.",
-              "Water makes flowers grow faster.",
-            ],
-            hint: true,
-          };
-    case Step.Danger:
-      // the one lesson about losing — kept on its own panel so it isn't read
-      // as another tip. Wording tracks gardenStumped()'s "most of what's left".
-      return {
-        lines: [
-          "Careful: if unicorns trample most",
-          "of the garden, it's game over.",
-          "Rain gathers when ruin is close.",
-          "Picked flowers are safe: harvest early!",
-        ],
-        hint: true,
-      };
-    case Step.Ready:
-      // last lesson: a real button instead of the click-to-continue hint
-      return {
-        lines: [
-          "Harvest flowers,  complete your rainbow.",
-          "Fresh flowers grow each season.",
-        ],
-        start: true,
-      };
+      // only once the demonstration flower is actually ripe — STAGE_BLOOM is
+      // when petals appear, but the pulsing "tap me" halo (and picking) only
+      // start at growth 1
+      return demo && demo.growth >= 1 ? demo : undefined;
+    case Step.Coins:
+      return { x: 40, y: 20 }; // coin counter
+    case Step.Rainbow:
+      return { x: 196, y: 20 }; // rainbow meter
+    case Step.Threat:
+      return unicorns[0] ?? lep; // the practice unicorn — "try it now"
+    case Step.Noise:
+      return toolButtonCenter(0);
+    default:
+      return;
   }
 }
 
@@ -390,17 +307,24 @@ export function draw(time: number) {
     startRect = null;
     return;
   }
-  const { lines, hint, start, target, offsetY } = lesson();
+  const lines = LESSONS[step].split("\n");
+  const start = step === Step.Ready; // last lesson: a real button, no hint
+  const hint = HINT_STEPS.includes(step);
   const h =
     PAD * 2 +
     lines.length * LINE_H +
     (start ? LINE_H + 16 : hint ? LINE_H + 8 : 0);
 
   // The opening lesson floats mid-screen; everything else stays pinned to the
-  // top of the field so it can never cover a bottom-of-screen target.
-  const py = step === Step.Move ? (VIEW_H - h) / 2 : PANEL_Y + (offsetY ?? 0);
+  // top of the field so it can never cover a bottom-of-screen target. The
+  // rewards panels drop 20px to leave their HUD arrows visible.
+  const py =
+    step === Step.Move
+      ? (VIEW_H - h) / 2
+      : PANEL_Y + (step === Step.Coins || step === Step.Rainbow ? 20 : 0);
 
   // attention arrow first, so the panel paints over it if they overlap
+  const target = arrowTarget();
   if (target) {
     drawArrow(target.x, target.y, time);
   }
@@ -417,16 +341,15 @@ export function draw(time: number) {
     ctx.fillText(line, VIEW_W / 2, py + PAD + 13 + i * LINE_H);
   });
 
+  // the whole message is the hit area — no separate button to aim for
+  panelRect = hint ? { x: PANEL_X, y: py, w: PANEL_W, h } : null;
   if (hint) {
     ctx.fillStyle = "#9fb8d8";
     ctx.font = "11px sans-serif";
     ctx.fillText(HINT, VIEW_W / 2, py + PAD + 13 + lines.length * LINE_H);
-    // the whole message is the hit area — no separate button to aim for
-    panelRect = { x: PANEL_X, y: py, w: PANEL_W, h };
-  } else {
-    panelRect = null;
   }
 
+  startRect = null;
   if (start) {
     const bw = 130;
     const bh = 26;
@@ -442,13 +365,15 @@ export function draw(time: number) {
     ctx.font = "bold 13px sans-serif";
     ctx.fillText(START, VIEW_W / 2, by + 17);
     startRect = { x: bx, y: by, w: bw, h: bh };
-  } else {
-    startRect = null;
   }
 
   // progress marker, tucked into the top-right corner clear of the text
   ctx.fillStyle = "#9fb8d8";
   ctx.font = "bold 11px sans-serif";
   ctx.textAlign = "right";
-  ctx.fillText(`${step + 1} / ${STEP_COUNT}`, PANEL_X + PANEL_W - 10, py + 16);
+  ctx.fillText(
+    `${step + 1} / ${LESSONS.length}`,
+    PANEL_X + PANEL_W - 10,
+    py + 16,
+  );
 }
