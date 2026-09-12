@@ -2,12 +2,10 @@ import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM } from "./garden";
 import { getCoins, PRICES, spendCoins } from "./hud";
 
-// Tool indices: 0=noise, 1=repel, 2=attract. Const enum erased; kept as
-// comments so the mapping is visible in source.
 const TOOLS = [
-  { icon: "\u{1F50A}" }, // 🔊 noise
-  { icon: "\u2618\uFE0F" }, // ☘️ repel
-  { icon: "\u{1F48E}" }, // 💎 attract
+  { icon: "\u{1F50A}", label: "Noise", left: 5 }, // 🔊 noise
+  { icon: "\u2618\uFE0F", label: "Repel", left: 5 }, // ☘️ repel
+  { icon: "\u{1F48E}", label: "Attract", left: 2 }, // 💎 attract
 ];
 
 let busy = false;
@@ -76,17 +74,21 @@ export function drawToolbar() {
     ctx.roundRect(x, BTN_Y, BTN_W, BTN_H, 8);
     ctx.fill();
     ctx.globalAlpha = afford ? 1 : 0.4;
-    // icon on the left half, price on the right
-    ctx.font = "20px sans-serif";
+    // tool icon on the left; bag + price on top right, the word under them
+    const textX = x + 42;
+    ctx.font = "24px sans-serif";
     ctx.fillStyle = "#fff";
-    ctx.fillText(TOOLS[i].icon, x + BTN_W / 2 - 24, BTN_Y + BTN_H / 2);
+    ctx.fillText(TOOLS[i].icon, x + 22, BTN_Y + BTN_H / 2);
+    ctx.textAlign = "left";
+    ctx.font = "14px sans-serif";
+    ctx.fillText("\u{1F4B0}", textX, BTN_Y + 15);
     ctx.font = "bold 14px sans-serif";
     ctx.fillStyle = "#ffd54a";
-    ctx.fillText(
-      `${PRICES[i]}\u{1F4B0}`,
-      x + BTN_W / 2 + 20,
-      BTN_Y + BTN_H / 2,
-    );
+    ctx.fillText(`${PRICES[i]}`, textX + 18, BTN_Y + 15);
+    ctx.font = "10px sans-serif";
+    ctx.fillStyle = "#cfe0f5";
+    ctx.fillText(TOOLS[i].label, textX + TOOLS[i].left, BTN_Y + 32);
+    ctx.textAlign = "center";
     ctx.globalAlpha = 1;
   }
   // drawHud assumes the default baseline on the next frame
