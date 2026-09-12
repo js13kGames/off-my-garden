@@ -11,7 +11,8 @@
     "build": "tsc && vite build && rm -f dist.zip && cd dist && advzip -a ../dist.zip index.html && cd ../ && ls -l dist.zip",
     "preview": "vite preview",
     "serve": "cd dist && python -m http.server 8008",
-    "check:tutorial": "node scripts/check-tutorial.mjs"
+    "check:tutorial": "node scripts/check-tutorial.mjs",
+    "check:gameplay": "node scripts/check-gameplay.mjs"
   },
   "keywords": [],
   "author": "Michel Thadeu Sabchuk",
