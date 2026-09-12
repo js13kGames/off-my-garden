@@ -49,16 +49,20 @@ const TRACKS: [
     0.22,
     "k.s.....k.k.s...",
   ],
-  // Win — same bright major pentatonic lead as before, faster and louder
+  // Win — a bugle fanfare, not a scale run. Full major scale instead of the
+  // pentatonic so the melody can climb in triads, four bars of I-IV-V-I each
+  // with its own phrase (ask, answer, lift, land home) instead of one shape
+  // repeated under changing chords — that repetition was the boring part.
+  // Kit and a little swing carry the celebration the lead alone can't.
   [
-    [0, 5, 7, 4],
-    "0.2.4.7.9.7.4.2.0.2.4.7.9.7.4.2.",
-    0.14,
+    [0, 5, 7, 0],
+    "0.2.4.7.7.4.2.4.4.5.7.5.7.4.2.0.",
+    0.13,
     "square",
-    0.16,
-    [12, 14, 16, 19, 21],
-    0,
-    "",
+    0.17,
+    [12, 14, 16, 17, 19, 21, 23, 24],
+    0.12,
+    "k.s.k.s.k.s.ksss",
   ],
   // Lose — same register as Win, slow and soft
   [
