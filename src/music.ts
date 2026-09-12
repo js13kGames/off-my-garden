@@ -11,19 +11,66 @@ export const enum Track {
 }
 
 const BASE = 220; // A3, semitone 0
+const VOLUME = 0.32; // master bus — music and SFX share it, so this is the whole mix
 const BAR_STEPS = 8;
-// [roots (chord progression, in semitones), melody (pentatonic degree per
-// step, "." = rest), step duration in seconds, melody waveform, melody gain]
-const TRACKS: [number[], string, number, OscillatorType, number][] = [
+// [roots (chord progression, in semitones), melody (scale degree per step,
+// "." = rest), step duration in seconds, melody waveform, melody gain,
+// scale (semitones per degree — carries the octave too, so a track picks its
+// own register: Play riffs down at BASE, Win/Lose sing an octave up),
+// swing (fraction of a step the off-beats are pushed late — 0 is straight),
+// drums (one char per step: "k" kick, "s" snare, "." neither — hats ride every
+// step regardless, so only the kit's backbone needs spelling out; "" = no kit.
+// The Play kit reads "tum tcs ··· tum tum tcs ···" and runs two bars, not one:
+// each phrase gets a bar of its own, and the silence after it is as much of
+// the figure as the hits are. Cramming both into one bar loses the shove.)]
+const TRACKS: [
+  number[],
+  string,
+  number,
+  OscillatorType,
+  number,
+  number[],
+  number,
+  string,
+][] = [
+  // Play — 70s hard-rock riff. Everything here is idiom rather than melody:
+  // blues scale (the b5 at degree 3 is the whole flavour) low at BASE, a
+  // shuffle so the off-beats drag, and call-and-answer phrasing — two bars
+  // that ask, two that reply — instead of unbroken eighths. Root pedal under
+  // it, the figure transposing with each chord. G minor: the roots sit two
+  // semitones below BASE. Sawtooth for grit a square can't give down here.
   [
-    [0, 7, 9, 5],
-    "4.7.9.7.4.2.0...9.7.9.7.4.7.9...0.2.4.2.0.....7.9.7.4.2.0.2.4.",
-    0.27,
+    [-2, -2, 1, 3],
+    "0.0.1.2.3210....0.0.1.2.5.4.2.0.",
+    0.18,
+    "sawtooth",
+    0.17,
+    [0, 3, 5, 6, 7, 10],
+    0.22,
+    "k.s.....k.k.s...",
+  ],
+  // Win — same bright major pentatonic lead as before, faster and louder
+  [
+    [0, 5, 7, 4],
+    "0.2.4.7.9.7.4.2.0.2.4.7.9.7.4.2.",
+    0.14,
     "square",
-    0.12,
-  ], // Play
-  [[0, 5, 7, 4], "0.2.4.7.9.7.4.2.0.2.4.7.9.7.4.2.", 0.14, "square", 0.16], // Win — same register, faster, louder square
-  [[0, -2, -4, -2], "0.2.0.....4.2.0.....7.4.2.0.......", 0.5, "sine", 0.16], // Lose — same register, slow, soft sine
+    0.16,
+    [12, 14, 16, 19, 21],
+    0,
+    "",
+  ],
+  // Lose — same register as Win, slow and soft
+  [
+    [0, -2, -4, -2],
+    "0.2.0.....4.2.0.....7.4.2.0.......",
+    0.5,
+    "sine",
+    0.16,
+    [12, 14, 16, 19, 21],
+    0,
+    "",
+  ],
 ];
 
 let track = TRACKS[0];
@@ -68,11 +115,40 @@ function note(
   osc.stop(at + dur);
 }
 
+let noiseBuf: AudioBuffer | undefined;
+
+// The kit's snare and hats: filtered white noise with a fast decay. One second
+// of noise generated once and looped, since a fresh buffer per hit would burn
+// CPU for a sound nobody can tell apart from the reused one.
+function hit(at: number, dur: number, gain: number, cutoff: number) {
+  if (!noiseBuf) {
+    noiseBuf = ac!.createBuffer(1, ac!.sampleRate, ac!.sampleRate);
+    const data = noiseBuf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) {
+      data[i] = Math.random() * 2 - 1;
+    }
+  }
+  const src = ac!.createBufferSource();
+  src.buffer = noiseBuf;
+  src.loop = true;
+  // Highpass is what separates the two: low cutoff leaves the body that reads
+  // as a snare, high cutoff strips everything but the sizzle of a hat.
+  const filter = ac!.createBiquadFilter();
+  filter.type = "highpass";
+  filter.frequency.value = cutoff;
+  const g = ac!.createGain();
+  src.connect(filter).connect(g).connect(master);
+  g.gain.setValueAtTime(gain, at);
+  g.gain.exponentialRampToValueAtTime(0.001, at + dur);
+  src.start(at);
+  src.stop(at + dur);
+}
+
 export function startMusic() {
   if (!ac) {
     ac = new AudioContext();
     master = ac.createGain();
-    master.gain.value = on ? 0.18 : 0;
+    master.gain.value = on ? VOLUME : 0;
     master.connect(ac.destination);
     nextTime = ac.currentTime;
   } else if (ac.state === "suspended") {
@@ -87,7 +163,10 @@ export function musicOn(): boolean {
 export function toggleMusic() {
   on = !on;
   if (master) {
-    master.gain.linearRampToValueAtTime(on ? 0.18 : 0, ac!.currentTime + 0.05);
+    master.gain.linearRampToValueAtTime(
+      on ? VOLUME : 0,
+      ac!.currentTime + 0.05,
+    );
   }
 }
 
@@ -139,9 +218,23 @@ export function updateMusic() {
   if (!ac) {
     return;
   }
-  const [roots, melody, step, type, gain] = track;
+  const [roots, melody, step, type, gain, scale, swing, drums] = track;
   while (nextTime < ac.currentTime + 0.25) {
     const bar = (stepI / BAR_STEPS) | 0;
+    if (drums) {
+      const beat = drums[stepI % drums.length];
+      if (beat === "k") {
+        // Kick — a low sine whose pitch collapses an octave and a half in
+        // 120 ms. That drop is the whole trick: it reads as a struck skin
+        // rather than a bass note.
+        note(-24, nextTime, 0.12, "sine", 0.34, 18);
+      } else if (beat === "s") {
+        hit(nextTime, 0.16, 0.15, 1200);
+      }
+      // Hats ride every step and swing with the riff, so the shuffle is felt
+      // and not just heard in the melody. Kick and snare stay on the grid.
+      hit(nextTime + (stepI % 2 ? step * swing : 0), 0.04, 0.045, 8000);
+    }
     if (stepI % BAR_STEPS === 0) {
       note(
         roots[bar % roots.length] - 12,
@@ -153,10 +246,11 @@ export function updateMusic() {
     }
     const deg = melody[stepI % melody.length];
     if (deg !== ".") {
-      const scale = [0, 2, 4, 7, 9];
+      // Off-beats land late by `swing` — the shuffle that separates a rock
+      // riff from a drum machine. The bass pedal above stays dead on the beat.
       note(
-        roots[bar % roots.length] + scale[Number(deg) % scale.length] + 12,
-        nextTime,
+        roots[bar % roots.length] + scale[Number(deg) % scale.length],
+        nextTime + (stepI % 2 ? step * swing : 0),
         step * 0.85,
         type,
         gain,
