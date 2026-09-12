@@ -25,6 +25,7 @@ import {
   musicButtonTap,
   rainbowArcFinished,
   rainbowDone,
+  resetButtonTap,
   resetHud,
   updateHud,
 } from "./hud";
@@ -146,6 +147,14 @@ canvas.addEventListener("pointerdown", (e) => {
   startMusic();
   const p = toLogical(e);
   if (musicButtonTap(p.x, p.y)) {
+    return;
+  }
+  // Abandons the run from anywhere but the title card, where there's nothing
+  // to abandon. Checked before the state branches so it beats the end cards'
+  // tap-anywhere restart to the punch — same outcome either way.
+  if (state !== State.Idle && resetButtonTap(p.x, p.y)) {
+    resetRun();
+    state = State.Idle;
     return;
   }
   if (state === State.Won) {
@@ -293,7 +302,7 @@ start(
     ctx.fillStyle = "#1d3557";
     ctx.fillRect(0, 0, VIEW_W, FIELD_TOP);
     ctx.fillRect(0, FIELD_BOTTOM, VIEW_W, VIEW_H - FIELD_BOTTOM);
-    drawHud();
+    drawHud(state !== State.Idle);
     drawToolbar();
     if (state === State.Tutorial) {
       drawTutorialPanel(time); // instruction panel paints over everything

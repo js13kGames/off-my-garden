@@ -121,8 +121,10 @@ function rainbowGradient(x0: number, x1: number) {
   return g;
 }
 
-const METER_X = 112;
-const METER_W = 168;
+// Meter sits between the coin count and the two HUD buttons — narrowed and
+// pulled left when the reset button joined the music toggle on the right.
+const METER_X = 96;
+const METER_W = 140;
 const METER_H = 14;
 
 function drawMeter() {
@@ -139,42 +141,49 @@ function drawMeter() {
   }
 }
 
-// Music toggle button, right of the meter in the top HUD strip.
-const MUSIC_X = 292;
-const MUSIC_Y = 6;
-const MUSIC_W = 56;
-const MUSIC_H = 28;
+// The two HUD buttons, right of the meter in the top strip: music toggle, then
+// reset. Same row, so only the x differs.
+const BTN_Y = 6;
+const BTN_W = 48;
+const BTN_H = 28;
+const MUSIC_X = 246;
+const RESET_X = 302;
+
+const hitButton = (bx: number, x: number, y: number) =>
+  x >= bx && x <= bx + BTN_W && y >= BTN_Y && y <= BTN_Y + BTN_H;
 
 /** Bounds-checks a tap against the music button; toggles and reports a hit. */
 export function musicButtonTap(x: number, y: number): boolean {
-  if (
-    x < MUSIC_X ||
-    x > MUSIC_X + MUSIC_W ||
-    y < MUSIC_Y ||
-    y > MUSIC_Y + MUSIC_H
-  ) {
+  if (!hitButton(MUSIC_X, x, y)) {
     return false;
   }
   toggleMusic();
   return true;
 }
 
-function drawMusicButton() {
+/** Bounds-checks a tap against the reset button. The restart itself lives in
+ * main.ts, which owns the run state. */
+export const resetButtonTap = (x: number, y: number) =>
+  hitButton(RESET_X, x, y);
+
+// Two stacked lines: a fixed label over a state line that dims when the button
+// is off or unavailable.
+function drawButton(bx: number, label: string, value: string, lit: boolean) {
   ctx.fillStyle = "#2a4a73";
   ctx.beginPath();
-  ctx.roundRect(MUSIC_X, MUSIC_Y, MUSIC_W, MUSIC_H, 6);
+  ctx.roundRect(bx, BTN_Y, BTN_W, BTN_H, 6);
   ctx.fill();
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  const cx = MUSIC_X + MUSIC_W / 2;
+  const cx = bx + BTN_W / 2;
   ctx.fillStyle = "#fff";
   ctx.font = "bold 9px sans-serif";
-  ctx.fillText("MUSIC", cx, MUSIC_Y + 10);
-  // only the on/off state dims — the label stays put
-  ctx.globalAlpha = musicOn() ? 1 : 0.4;
+  ctx.fillText(label, cx, BTN_Y + 10);
+  // only the state line dims — the label stays put
+  ctx.globalAlpha = lit ? 1 : 0.4;
   ctx.fillStyle = "#ffd54a";
   ctx.font = "bold 11px sans-serif";
-  ctx.fillText(musicOn() ? "ON" : "OFF", cx, MUSIC_Y + 21);
+  ctx.fillText(value, cx, BTN_Y + 21);
   ctx.globalAlpha = 1;
   ctx.textBaseline = "alphabetic";
 }
@@ -264,14 +273,16 @@ function drawSparklePlus(px: number, py: number, size: number, alpha: number) {
   ctx.fillRect(px - thickness / 2, py - half, thickness, size);
 }
 
-export function drawHud() {
+/** `canReset` greys the reset button out when there's no run to abandon. */
+export function drawHud(canReset: boolean) {
   drawRainbowArc();
   ctx.textAlign = "left";
   ctx.font = "bold 16px sans-serif";
   ctx.fillStyle = "#ffd54a";
   ctx.fillText(`\u{1F4B0} ${coins}`, 10, 26);
   drawMeter();
-  drawMusicButton();
+  drawButton(MUSIC_X, "MUSIC", musicOn() ? "ON" : "OFF", musicOn());
+  drawButton(RESET_X, "RESET", "↺", canReset);
 
   ctx.textAlign = "center";
   ctx.font = "bold 13px sans-serif";
