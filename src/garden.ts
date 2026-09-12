@@ -35,25 +35,50 @@ function scatter(count: number, pick: () => { x: number; y: number }) {
   return points;
 }
 
-// Grass tufts: three thin blades fanned out from a point, scattered once at
-// startup. Purely decorative — flat green reads as a void, this reads as lawn.
-const TUFT_COUNT = 45;
-const TUFTS = scatter(TUFT_COUNT, () => ({
-  x: Math.random() * VIEW_W,
-  y: Math.random() * VIEW_H,
-}));
-
 export function drawLawn() {
   ctx.fillStyle = "#080";
   ctx.fillRect(0, 0, VIEW_W, VIEW_H);
-  ctx.fillStyle = "rgba(0,160,0,.7)";
-  for (const t of TUFTS) {
-    // i = -1/0/1: left blade leaning out, upright blade, right blade
-    for (let i = -1; i < 2; i++) {
+  for (const decoration of DECORATIONS) {
+    ctx.save();
+    ctx.translate(decoration.x, decoration.y);
+    ctx.scale(decoration.width, decoration.height);
+    ctx.transform(1, 0, decoration.lean, 1, 0, 0);
+    if (decoration.pebble) {
+      // A squat stone with a quiet top facet reads as ground, not an obstacle.
+      ctx.fillStyle = "#68816a";
       ctx.beginPath();
-      ctx.ellipse(t.x + i * 1.8, t.y, 1, 5, i * 0.18, 0, 7);
+      ctx.moveTo(-3, -1);
+      ctx.lineTo(-1.5, -3);
+      ctx.lineTo(1, -3.4);
+      ctx.lineTo(2.7, -1.8);
+      ctx.lineTo(3, -0.4);
+      ctx.lineTo(0, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = "#839783";
+      ctx.beginPath();
+      ctx.moveTo(-3, -1);
+      ctx.lineTo(-1.5, -3);
+      ctx.lineTo(1, -3.4);
+      ctx.lineTo(2.7, -1.8);
+      ctx.lineTo(-0.5, -1.5);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      // Unequal, curved blades taper to points and overlap at their roots.
+      ctx.fillStyle = "#259529";
+      ctx.beginPath();
+      ctx.moveTo(-1, 0);
+      ctx.quadraticCurveTo(-3, -1, -5, -5);
+      ctx.quadraticCurveTo(-1, -4, 0, -1);
+      ctx.quadraticCurveTo(-1, -4, 1, -7);
+      ctx.quadraticCurveTo(2, -4, 1, -1);
+      ctx.quadraticCurveTo(3, -4, 5, -4);
+      ctx.quadraticCurveTo(3, -1, 1, 0);
+      ctx.closePath();
       ctx.fill();
     }
+    ctx.restore();
   }
 }
 
@@ -120,6 +145,35 @@ export const beds: Bed[] = [
   makeBed(115, 340, 50), // daisies
   makeBed(240, 500, 315), // blossoms
 ];
+
+// Grass and pebbles share a scatter so they don't pile onto the same spots.
+// Purely decorative — flat green reads as a void, this reads as lawn.
+const TUFT_COUNT = 40;
+const PEBBLE_COUNT = 7;
+const DECORATIONS = scatter(TUFT_COUNT + PEBBLE_COUNT, () => {
+  let point: { x: number; y: number };
+  // Reserve space for every sprout, including flowers currently gone or growing.
+  // Generate after the beds so their actual spawn positions are available.
+  do {
+    point = {
+      x: 12 + Math.random() * (VIEW_W - 24),
+      y: FIELD_TOP + 12 + Math.random() * (FIELD_BOTTOM - FIELD_TOP - 24),
+    };
+  } while (
+    beds.some((bed) =>
+      bed.some(
+        (flower) => Math.hypot(flower.x - point.x, flower.y - point.y) < 14,
+      ),
+    )
+  );
+  return point;
+}).map((point, index) => ({
+  ...point,
+  pebble: index < PEBBLE_COUNT,
+  width: 0.8 + Math.random() * 0.4,
+  height: 0.75 + Math.random() * 0.5,
+  lean: Math.random() * 0.6 - 0.3,
+}));
 
 // Counts stumped flowers this wave — the game-over trigger. standing() gates
 // every trample() call and it requires Growing, which trample() leaves for
