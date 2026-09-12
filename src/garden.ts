@@ -343,11 +343,13 @@ function drawFlower(f: Flower, time: number) {
     ctx.globalAlpha = k;
     ctx.rotate((1 - k) * 1.2);
   }
-  if (g >= 1 && f.state === FlowerState.Growing) {
-    // mature: a slow bob (whole flower, local space) says "collect me" in any
-    // hue — phase derives from x so a bed ripples instead of bobbing in sync
-    const bob = Math.sin(time * 2.4 + f.x * 0.12) * 2;
-    ctx.translate(0, bob);
+  const ripe = g >= 1 && f.state === FlowerState.Growing;
+  if (ripe) {
+    // mature: sway from the stem base — reads as a flower nodding rather than
+    // the whole sprite jittering. Phase from x so a bed ripples out of sync.
+    ctx.translate(0, 4);
+    ctx.rotate(Math.sin(time * 2.2 + f.x * 0.12) * 0.09);
+    ctx.translate(0, -4);
   }
   // stem grows with the flower
   const stem = 4 + 8 * g;
@@ -367,6 +369,15 @@ function drawFlower(f: Flower, time: number) {
   } else {
     // bud → bloom: petals scale up with growth
     const size = g < 0.66 ? 2.5 : 3 + 3 * g;
+    if (ripe) {
+      // ripe halo: a soft pulsing glow behind the head — the "tap me" tell that
+      // survives any petal hue, unlike motion alone
+      const p = 0.5 + 0.5 * Math.sin(time * 2.2 + f.x * 0.12);
+      ctx.fillStyle = `hsla(${f.hue},90%,70%,${0.15 + 0.2 * p})`;
+      ctx.beginPath();
+      ctx.arc(0, top, size * (1.9 + 0.35 * p), 0, 7);
+      ctx.fill();
+    }
     ctx.fillStyle = `hsl(${f.hue},80%,${g < 0.66 ? 45 : 60}%)`;
     for (let i = 0; i < 5; i++) {
       const a = (i / 5) * Math.PI * 2;
