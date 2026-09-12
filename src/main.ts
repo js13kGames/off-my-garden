@@ -33,12 +33,14 @@ import { start } from "./loop";
 import { setTrack, startMusic, Track, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
 import {
+  attractors,
   drawPlaceables,
   placeAttractor,
   placeRepellent,
+  repellents,
   updatePlaceables,
 } from "./placeable";
-import { drawRain, updateRain } from "./rain";
+import { drawRain, resetRain, updateRain } from "./rain";
 import {
   drawToolbar,
   setBusy,
@@ -61,7 +63,7 @@ import {
   update as tutorialUpdate,
 } from "./tutorial";
 import { drawUnicorns, unicorns, updateUnicorns } from "./unicorn";
-import { unicornsSeen, updateWaves } from "./wave";
+import { resetWaves, unicornsSeen, updateWaves } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
@@ -109,12 +111,17 @@ function startRun(fromTutorialButton: boolean) {
   }
 }
 
-// Practice is over: put every system back to its fresh-run state so normal
-// play starts from the same conditions as a non-tutorial run.
-function finishTutorial() {
-  completeTutorial();
+// Puts every system back to its fresh-run state. The page never reloads — the
+// game runs in an iframe — so this is the one restart path: the tutorial
+// handoff and both end cards go through it.
+function resetRun() {
+  updateNoise(1); // finish any in-flight ring, or it resumes over the new run
   resetGarden();
-  unicorns.length = 0; // the practice uni would trample the fresh garden uncounted
+  unicorns.length = 0; // a leftover uni would trample the fresh garden uncounted
+  resetWaves();
+  repellents.length = 0;
+  attractors.length = 0;
+  resetRain();
   lep.x = lep.tx = LEP_START.x;
   lep.y = lep.ty = LEP_START.y;
   lep.moving = false;
@@ -122,6 +129,16 @@ function finishTutorial() {
   resetHud();
   setBusy(false);
   setToolGate(TOOL_ALL);
+  time = 0;
+  variant = (Math.random() * 3) | 0; // fresh end-card wording per run
+  setTrack(Track.Play);
+}
+
+// Practice is over: normal play starts from the same conditions as a
+// non-tutorial run.
+function finishTutorial() {
+  completeTutorial();
+  resetRun();
   state = State.Playing;
 }
 
@@ -133,14 +150,14 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   if (state === State.Won) {
     if (rainbowArcFinished()) {
-      location.reload();
+      resetRun();
+      state = State.Idle;
     }
     return; // ignore taps mid-reveal so the win can't be dismissed early
   }
   if (state === State.Lost) {
-    // ponytail: reload is the reset — swap for in-place resets if the flash
-    // shows or a score needs to survive the restart.
-    location.reload();
+    resetRun();
+    state = State.Idle;
     return;
   }
   if (state === State.Idle) {
@@ -360,8 +377,8 @@ function drawTitleCard() {
   titleButton("TUTORIAL", TITLE_TUT_Y);
 }
 
-// Picked once per page load — a restart is a reload, so each run gets one.
-const variant = (Math.random() * 3) | 0;
+// Which end-card wording this run gets; re-rolled by resetRun.
+let variant = (Math.random() * 3) | 0;
 
 // Hand-split to the card width; three lines each keeps the layout fixed.
 const WIN_LINES = (n: number) => [

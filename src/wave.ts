@@ -27,6 +27,15 @@ let intermission = 0;
 // For the end panel's message.
 export const unicornsSeen = () => seen;
 
+/** Back to wave 1 with an empty roster, for a restart. */
+export function resetWaves() {
+  wave = 1;
+  spawned = 0;
+  seen = 0;
+  spawnTimer = 1;
+  intermission = 0;
+}
+
 /** Advances the wave clock: spawns the roster, and once it's gone, withers
  * and resets the garden before starting the next wave right away. */
 export function updateWaves(dt: number) {

@@ -20,6 +20,11 @@ for (let i = 0; i < DROP_COUNT; i++) {
 const RAMP_TIME = 1.2;
 let rainT = 0;
 
+/** Clears the storm so a restart doesn't start mid-downpour. */
+export function resetRain() {
+  rainT = 0;
+}
+
 export function updateRain(dt: number) {
   rainT = Math.min(RAMP_TIME, rainT + dt);
   for (const d of drops) {
