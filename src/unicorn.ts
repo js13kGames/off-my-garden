@@ -2,6 +2,7 @@ import { ctx, VIEW_W } from "./canvas";
 import {
   type Bed,
   beds,
+  drawHead,
   FIELD_BOTTOM,
   FIELD_TOP,
   type Flower,
@@ -584,10 +585,10 @@ function drawUnicorn(u: Unicorn, time: number) {
   ctx.restore();
 }
 
-// speech-bubble telegraph: shown above a Notice-state unicorn, with a tiny
-// rosette in the noticed flower's hue so the player sees exactly what's at risk
+// speech-bubble telegraph: shown above a Notice-state unicorn, holding a
+// miniature of the flower it noticed — same layout and hue as the one on the
+// lawn, so the player can pick the target out of a mixed bed
 function drawThoughtBubble(u: Unicorn, time: number) {
-  const hue = (u.target as Flower).hue;
   const bob = Math.sin(time * 6) * 1;
   const bx = u.x + 14;
   const by = u.y - 30 + bob;
@@ -607,17 +608,7 @@ function drawThoughtBubble(u: Unicorn, time: number) {
   ctx.arc(bx, by, 11, 0, 7);
   ctx.fill();
   ctx.stroke();
-  ctx.fillStyle = `hsl(${hue},80%,55%)`;
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    ctx.beginPath();
-    ctx.arc(bx + Math.cos(a) * 3.5, by + Math.sin(a) * 3.5, 2.4, 0, 7);
-    ctx.fill();
-  }
-  ctx.fillStyle = "#ffd54a";
-  ctx.beginPath();
-  ctx.arc(bx, by, 1.8, 0, 7);
-  ctx.fill();
+  drawHead(u.target as Flower, 5, bx, by, 55);
 }
 
 export function drawUnicorns(time: number) {

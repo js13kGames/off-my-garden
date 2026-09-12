@@ -214,7 +214,22 @@ export type Flower = {
   hue: number;
   state: FlowerState;
   anim: number; // seconds left in the current death/wither animation
+  kind: number; // index into SHAPES — the head's petal layout
 };
+
+// Petal layouts. One head is n petals on a ring around the stem tip plus a
+// round core, so every species below is six numbers rather than a
+// hand-drawn path: `len` is the petal's radial length and `wide` its width
+// across, both in units of the head size; `reach` how far out on the ring its
+// centre sits; `core` the eye's radius (0 = none); `spin` rotates the ring;
+// `point` swaps the round petal for a lens that tapers to a tip at both ends.
+const SHAPES = [
+  { n: 5, len: 0.7, wide: 0.7, reach: 0.8, core: 0.5, spin: 0, point: 0 }, // daisy
+  { n: 9, len: 0.95, wide: 0.26, reach: 0.55, core: 0.35, spin: 0, point: 0 }, // aster
+  { n: 6, len: 0.95, wide: 0.5, reach: 0.8, core: 0.35, spin: 0, point: 0 }, // cosmos
+  { n: 7, len: 0.55, wide: 0.55, reach: 0.9, core: 0.55, spin: 0, point: 0 }, // gerbera
+  { n: 8, len: 0.95, wide: 0.4, reach: 0.75, core: 0.5, spin: 0, point: 1 }, // marguerite
+];
 
 // A bed is just a group of flowers now — no rect, no soil, no collision. It
 // exists so a rampaging unicorn can commit to "this clump" and the shop can
@@ -233,7 +248,12 @@ const FLOWERS_PER_BED = 7;
 // one clump, big enough that petals don't all stack on the same point
 const BED_RADIUS = 36;
 
-function makeBed(cx: number, cy: number, hue: number): Bed {
+// Petal hues, one per rainbow band — picked per flower, not per bed, so every
+// clump comes up mixed. Spaced far enough apart that neighbours never read as
+// two shades of the same colour.
+const RAINBOW = [0, 30, 50, 120, 195, 260, 320];
+
+function makeBed(cx: number, cy: number): Bed {
   const flowers = scatter(FLOWERS_PER_BED, () => {
     const a = Math.random() * Math.PI * 2;
     // sqrt-scaled radius: uniform density across the disc instead of
@@ -245,9 +265,10 @@ function makeBed(cx: number, cy: number, hue: number): Bed {
     y: p.y,
     growth: 0,
     rate: (0.8 + Math.random() * 0.4) / GROW_TIME,
-    hue,
+    hue: RAINBOW[(Math.random() * RAINBOW.length) | 0],
     state: FlowerState.Growing,
     anim: 0,
+    kind: (Math.random() * SHAPES.length) | 0,
   }));
   // no soil rect to layer on, so draw order has to fake the depth: lower
   // flowers (larger y) drawn last so they sit in front of ones behind them
@@ -257,9 +278,9 @@ function makeBed(cx: number, cy: number, hue: number): Bed {
 
 // Three loose clumps in an asymmetric zigzag, clear of the HUD/toolbar strips
 export const beds: Bed[] = [
-  makeBed(245, 155, 340), // tulips
-  makeBed(115, 340, 50), // daisies
-  makeBed(240, 500, 315), // blossoms
+  makeBed(245, 155),
+  makeBed(115, 340),
+  makeBed(240, 500),
 ];
 
 // Grass and pebbles share a scatter so they don't pile onto the same spots.
@@ -429,6 +450,53 @@ export function updateGarden(dt: number) {
   }
 }
 
+// Just the head — petals of the flower's own layout around (cx, cy), plus the
+// eye. Shared with the unicorn's thought bubble so the telegraph shows the
+// exact flower it noticed, shape and all. `light` is the petal lightness, the
+// one thing a bud needs different from a bloom.
+export function drawHead(
+  f: Pick<Flower, "hue" | "kind">,
+  size: number,
+  cx: number,
+  cy: number,
+  light: number,
+) {
+  const s = SHAPES[f.kind];
+  ctx.fillStyle = `hsl(${f.hue},80%,${light}%)`;
+  for (let i = 0; i < s.n; i++) {
+    // petals sit on a circle around the head's centre, each drawn along +x
+    // from its own origin and rotated so `len` points outward
+    const a = s.spin + (i / s.n) * Math.PI * 2;
+    ctx.save();
+    ctx.translate(
+      cx + Math.cos(a) * size * s.reach,
+      cy + Math.sin(a) * size * s.reach,
+    );
+    ctx.rotate(a);
+    const len = size * s.len;
+    ctx.beginPath();
+    if (s.point) {
+      // two arcs bulging to `wide` and meeting at the tips — control points
+      // go to double the width, which is where a quadratic peaks at half
+      const wide = size * s.wide * 2;
+      ctx.moveTo(-len, 0);
+      ctx.quadraticCurveTo(0, -wide, len, 0);
+      ctx.quadraticCurveTo(0, wide, -len, 0);
+    } else {
+      ctx.ellipse(0, 0, len, size * s.wide, 0, 0, 7);
+    }
+    ctx.fill();
+    ctx.restore();
+  }
+  if (s.core) {
+    // the yellow eye disappears into yellow petals — those get a white one
+    ctx.fillStyle = f.hue > 40 && f.hue < 70 ? "#fff6e0" : "#ffd54a";
+    ctx.beginPath();
+    ctx.arc(cx, cy, size * s.core, 0, 7);
+    ctx.fill();
+  }
+}
+
 function drawFlower(f: Flower, time: number) {
   if (f.state === FlowerState.Gone) {
     return; // bare soil — trampled/sold/withered stays empty for the wave
@@ -494,23 +562,7 @@ function drawFlower(f: Flower, time: number) {
       ctx.arc(0, top, size * (1.9 + 0.35 * p), 0, 7);
       ctx.fill();
     }
-    ctx.fillStyle = `hsl(${f.hue},80%,${g < STAGE_BLOOM ? 45 : 60}%)`;
-    for (let i = 0; i < 5; i++) {
-      const a = (i / 5) * Math.PI * 2;
-      ctx.beginPath();
-      ctx.arc(
-        Math.cos(a) * size * 0.8,
-        top + Math.sin(a) * size * 0.8,
-        size * 0.7,
-        0,
-        7,
-      );
-      ctx.fill();
-    }
-    ctx.fillStyle = "#ffd54a";
-    ctx.beginPath();
-    ctx.arc(0, top, size * 0.5, 0, 7);
-    ctx.fill();
+    drawHead(f, size, 0, top, g < STAGE_BLOOM ? 45 : 60);
   }
   ctx.restore();
 }
