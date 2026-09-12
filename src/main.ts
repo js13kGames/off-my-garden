@@ -162,7 +162,7 @@ canvas.addEventListener("pointerdown", (e) => {
     if (harvestingOn()) {
       const f = sellAt(p.x, p.y, lep.x, lep.y);
       if (f) {
-        addCoins(f.x, f.y);
+        addCoins(f);
         harvested();
         return; // sell taps are consumed — he stays where he is
       }
@@ -180,7 +180,7 @@ canvas.addEventListener("pointerdown", (e) => {
   }
   const f = sellAt(p.x, p.y, lep.x, lep.y);
   if (f) {
-    addCoins(f.x, f.y);
+    addCoins(f);
     return; // sell taps are consumed — he stays where he is
   }
   // taps on the HUD/toolbar strips don't move him
@@ -223,7 +223,7 @@ start(
     updateLep(dt);
     const f = wasWalking && harvestAtPosition(lep.x, lep.y);
     if (f) {
-      addCoins(f.x, f.y);
+      addCoins(f);
     }
     updateWaves(dt);
     updateUnicorns(dt);

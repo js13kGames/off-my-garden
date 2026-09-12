@@ -139,7 +139,7 @@ export function update(dt: number) {
   if (wasWalking && harvestingOn()) {
     const f = harvestAtPosition(lep.x, lep.y);
     if (f) {
-      addCoins(f.x, f.y);
+      addCoins(f);
       harvested();
     }
   }
@@ -307,7 +307,10 @@ function lesson(): {
       // the box drops 20px to leave them visible
       return phase === 0
         ? {
-            lines: ["Flowers earn coins for tools."],
+            lines: [
+              "Flowers earn coins for tools.",
+              "Same colour in a row pays more.",
+            ],
             target: { x: 40, y: 20, r: 20 }, // coin counter
             hint: true,
             offsetY: 20,

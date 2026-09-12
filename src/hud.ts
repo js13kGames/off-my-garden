@@ -4,30 +4,46 @@ import { musicOn, Sfx, sfx, toggleMusic } from "./music";
 
 // Coins earned by selling flowers; spent on tools the moment they're used.
 // Per-use price, paid straight from the coin bank; balance against COIN_VALUE in hud.ts.
-export const PRICES = [10, 15, 20];
+// Priced against a wave's realistic take (~10-14 harvests at 5-15 coins each,
+// so ~90-120 coins): roughly three or four tool uses a wave, not a dozen.
+// Cheapest is the noisemaker — it already pays a second cost in the walk over
+// there; the attractor is dearest because one placement reshapes traffic for
+// the rest of the wave.
+export const PRICES = [30, 40, 50];
 let coins = PRICES[0] + PRICES[1];
 const COIN_VALUE = 5;
 
-type Popup = { x: number; y: number; t: number };
+type Popup = { x: number; y: number; t: number; gain: number; hue: number };
 const POP_TIME = 0.9;
 const pops: Popup[] = [];
 
-// Rainbow objective: every harvested flower fills the meter; a full meter
-// draws the rainbow in and wins the run. Coins still count as score, but the
-// meter itself never resets once won.
-const FLOWERS_PER_RAINBOW = 10;
+// Rainbow objective: every harvested flower adds points to the meter; a full
+// meter draws the rainbow in and wins the run. Coins still count as score, but
+// the meter itself never resets once won.
+// Points, not flowers: a plain harvest is worth 1, so a rainbow is 30 lone
+// blooms — slow enough that the run breathes — but chaining same-coloured
+// harvests pays up to 3 a pop, which is how a good player actually gets there.
+const POINTS_PER_RAINBOW = 30;
+const COMBO_CAP = 3;
 let rainbowFill = 0; // 0..1
 const ARC_TIME = 2; // seconds the draw-in animation takes
 let arcT = -1; // seconds since the rainbow was won, -1 = not yet won
+let comboHue = -1; // hue of the last harvest, -1 = no chain running
+let combo = 0; // how many same-hue harvests in a row, including this one
 
-export function addCoins(x: number, y: number) {
-  coins += COIN_VALUE;
-  pops.push({ x, y, t: POP_TIME });
+export function addCoins(f: { x: number; y: number; hue: number }) {
   sfx(Sfx.Coin);
+  combo = f.hue === comboHue ? combo + 1 : 1;
+  comboHue = f.hue;
+  // One multiplier for both rewards: a chained harvest pays the same factor
+  // in coins as it does in meter points.
+  const gain = Math.min(combo, COMBO_CAP);
+  coins += COIN_VALUE * gain;
+  pops.push({ x: f.x, y: f.y, t: POP_TIME, gain, hue: f.hue });
   if (arcT >= 0) {
     return; // already won — meter stays full, no more fills
   }
-  rainbowFill += 1 / FLOWERS_PER_RAINBOW;
+  rainbowFill += gain / POINTS_PER_RAINBOW;
   if (rainbowFill >= 1) {
     rainbowFill = 1;
     arcT = 0;
@@ -64,6 +80,8 @@ export function resetHud() {
   coins = PRICES[0] + PRICES[1];
   rainbowFill = 0;
   arcT = -1;
+  combo = 0;
+  comboHue = -1;
   pops.length = 0;
 }
 
@@ -253,8 +271,14 @@ export function drawHud() {
     const y = p.y - 18 * (1 - k);
     ctx.lineWidth = 3;
     ctx.strokeStyle = `rgba(0,0,0,${0.6 * k})`;
-    ctx.strokeText(`+${COIN_VALUE}`, p.x, y);
+    const paid = `+${COIN_VALUE * p.gain}`;
+    ctx.strokeText(paid, p.x, y);
     ctx.fillStyle = `rgba(255,213,74,${k})`;
-    ctx.fillText(`+${COIN_VALUE}`, p.x, y);
+    ctx.fillText(paid, p.x, y);
+    // Meter gain rides above the coin pop, in the flower's own colour so a
+    // chained harvest reads as "that colour again" without extra wording.
+    ctx.strokeText(`+${p.gain}`, p.x, y - 14);
+    ctx.fillStyle = `hsla(${p.hue},90%,65%,${k})`;
+    ctx.fillText(`+${p.gain}`, p.x, y - 14);
   }
 }
