@@ -61,29 +61,6 @@ export function toolbarTap(x: number, y: number): number {
   return -1;
 }
 
-/** Keyboard shortcut: digit is 1-based (1/2/3), anything else ignored. */
-export function toolbarKey(digit: number) {
-  const i = digit - 1;
-  if (
-    digit >= 1 &&
-    digit <= TOOLS.length &&
-    !busy &&
-    !gated(i) &&
-    getCoins() >= cost(i)
-  ) {
-    spendCoins(cost(i));
-    pending = i;
-  }
-}
-
-let pending = -1;
-/** Returns the tool fired by keyboard, or -1. Clears the pending state. */
-export function takePending(): number {
-  const t = pending;
-  pending = -1;
-  return t;
-}
-
 /** Centre of a tool button, for tutorial highlights. */
 export function toolButtonCenter(i: number) {
   return { x: btnX(i) + BTN_W / 2, y: BTN_Y + BTN_H / 2 };

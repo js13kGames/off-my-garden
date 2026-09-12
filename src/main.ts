@@ -30,7 +30,7 @@ import {
 } from "./hud";
 import { drawLep, LEP_START, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
-import { setTrack, startMusic, Track, toggleMusic, updateMusic } from "./music";
+import { setTrack, startMusic, Track, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
 import {
   drawPlaceables,
@@ -44,8 +44,6 @@ import {
   setBusy,
   setToolGate,
   TOOL_ALL,
-  takePending,
-  toolbarKey,
   toolbarTap,
 } from "./toolbar";
 import {
@@ -118,33 +116,10 @@ function finishTutorial() {
   lep.blocking = false;
   resetHud();
   setBusy(false);
-  takePending();
   setToolGate(TOOL_ALL);
   state = State.Playing;
 }
 
-addEventListener("keydown", (e) => {
-  if (e.code === "Space" || e.key === "Enter") {
-    if (state === State.Idle) {
-      startRun(false);
-    } else if (
-      state === State.Lost ||
-      (state === State.Won && rainbowArcFinished())
-    ) {
-      location.reload();
-    }
-  }
-  if (e.key === "m" || e.key === "M") {
-    toggleMusic();
-  }
-  if (
-    e.key >= "1" &&
-    e.key <= "3" &&
-    (state === State.Playing || state === State.Tutorial)
-  ) {
-    toolbarKey(Number(e.key));
-  }
-});
 canvas.addEventListener("pointerdown", (e) => {
   startMusic();
   const p = toLogical(e);
@@ -233,13 +208,6 @@ start(
       if (!isRingBusy()) {
         setBusy(false);
       }
-      // keyboard tool use rides the same gate as taps, so only the lesson's
-      // tool can fire
-      const kb = takePending();
-      if (kb >= 0) {
-        useTool(kb);
-        toolUsed(kb);
-      }
       updateHud(dt);
       if (isFinished()) {
         finishTutorial();
@@ -263,10 +231,6 @@ start(
     updatePlaceables(dt);
     if (!isRingBusy()) {
       setBusy(false);
-    }
-    const kb = takePending();
-    if (kb >= 0) {
-      useTool(kb);
     }
     updateHud(dt);
     if (rainbowDone()) {
@@ -335,7 +299,7 @@ function drawCard(w: number, h: number): number {
 }
 
 // Title card geometry, shared by drawing and hit-testing. Two stacked
-// buttons: Play (or Space) and an always-available Tutorial replay.
+// buttons: Play and an always-available Tutorial replay.
 const TITLE_CARD_H = 250;
 const TITLE_BTN_W = 150;
 const TITLE_BTN_H = 32;
@@ -444,5 +408,5 @@ function drawEndCard(won: boolean) {
   });
   ctx.fillStyle = "#ffd54a";
   ctx.font = "13px sans-serif";
-  ctx.fillText("tap or press Space to restart", VIEW_W / 2, y + 133);
+  ctx.fillText("tap to restart", VIEW_W / 2, y + 133);
 }
