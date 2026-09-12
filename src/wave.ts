@@ -18,12 +18,13 @@ function nervousChanceFor(wave: number) {
 
 let wave = 1;
 let spawned = 0;
+let seen = 0; // unicorns spawned across the whole run
 let spawnTimer = 1; // small delay before the first unicorn of a run
 const INTERMISSION_TIME = 2.5;
 let intermission = 0;
 
-// For the game-over panel's score line.
-export const wavesSurvived = () => wave;
+// For the end panel's message.
+export const unicornsSeen = () => seen;
 
 /** Advances the wave clock: spawns the roster, and once it's gone, withers
  * and resets the garden before starting the next wave right away. */
@@ -51,6 +52,7 @@ export function updateWaves(dt: number) {
       spawnTimer = spawnEveryFor(wave);
       spawnUnicorn(Math.random() < nervousChanceFor(wave));
       spawned++;
+      seen++;
     }
   } else if (unicorns.length === 0) {
     // every unicorn this wave spawned is gone — send survivors into their

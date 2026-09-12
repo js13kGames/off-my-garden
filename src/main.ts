@@ -21,7 +21,6 @@ import {
 import {
   addCoins,
   drawHud,
-  getCoins,
   musicButtonTap,
   rainbowArcFinished,
   rainbowDone,
@@ -46,7 +45,7 @@ import {
   toolbarTap,
 } from "./toolbar";
 import { drawUnicorns, updateUnicorns } from "./unicorn";
-import { updateWaves, wavesSurvived } from "./wave";
+import { unicornsSeen, updateWaves } from "./wave";
 
 // const enum erases to numbers — State.Playing becomes 1 in the bundle
 const enum State {
@@ -227,12 +226,12 @@ function drawTitleCard() {
   ctx.fillText("OFF MY LAWN!", VIEW_W / 2, y + 38);
   ctx.fillStyle = "#fff";
   ctx.font = "14px sans-serif";
-  ctx.fillText("Keep the unicorns off it.", VIEW_W / 2, y + 62);
+  ctx.fillText("Protect the rainbow garden!", VIEW_W / 2, y + 62);
   // Emoji-led one-liners: threat, action, goal — the whole loop in three reads.
   ctx.textAlign = "left";
   ctx.font = "13px sans-serif";
   const lines = [
-    "\u{1F984}  They stomp your flowers",
+    "\u{1F984}  Unicorns stomp your flowers",
     "\u{1F338}  Tap a bloom to harvest it",
     "\u{1F308}  Harvest enough for a rainbow",
   ];
@@ -245,16 +244,56 @@ function drawTitleCard() {
   ctx.fillText("tap to start", VIEW_W / 2, y + 180);
 }
 
+// Picked once per page load — a restart is a reload, so each run gets one.
+const variant = (Math.random() * 3) | 0;
+
+// Hand-split to the card width; three lines each keeps the layout fixed.
+const WIN_LINES = (n: number) => [
+  [
+    `After ${n} unicorns, the garden held!`,
+    "Your rainbow is up there",
+    "for everyone to see.",
+  ],
+  [
+    `Not one of ${n} unicorns got`,
+    "what they came for.",
+    "Beautiful rainbow, gardener.",
+  ],
+  [
+    "Petals intact, sky painted.",
+    `After ${n} unicorns,`,
+    "that rainbow is all yours.",
+  ],
+];
+const LOSS_LINES = (n: number) => [
+  [
+    "Some gardener you are.",
+    `${n} unicorns in, and your`,
+    "flowers are mulch.",
+  ],
+  [
+    "The pot of gold stays empty.",
+    `${n} unicorns trampled`,
+    "the garden flat.",
+  ],
+  [
+    `${n} unicorns later, not a petal`,
+    "left standing. The rainbow",
+    "will have to wait.",
+  ],
+];
+
 function drawEndCard(won: boolean) {
-  const y = drawCard(220, 120);
+  const n = unicornsSeen();
+  const lines = (won ? WIN_LINES(n) : LOSS_LINES(n))[variant];
+  const y = drawCard(300, 150);
   ctx.fillStyle = won ? "#7cffb0" : "#ff6b6b";
   ctx.font = "bold 20px sans-serif";
   ctx.fillText(won ? "YOU WIN!" : "GAME OVER", VIEW_W / 2, y + 32);
   ctx.fillStyle = "#fff";
-  ctx.font = "15px sans-serif";
-  ctx.fillText(`Waves survived: ${wavesSurvived()}`, VIEW_W / 2, y + 60);
-  ctx.fillText(`Coins earned: ${getCoins()}`, VIEW_W / 2, y + 82);
+  ctx.font = "14px sans-serif";
+  lines.forEach((line, i) => ctx.fillText(line, VIEW_W / 2, y + 64 + i * 21));
   ctx.fillStyle = "#ffd54a";
   ctx.font = "13px sans-serif";
-  ctx.fillText("tap to restart", VIEW_W / 2, y + 106);
+  ctx.fillText("tap to restart", VIEW_W / 2, y + 133);
 }
