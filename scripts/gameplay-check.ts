@@ -62,6 +62,7 @@ const {
   gardenStumped,
   harvestAtPosition,
   resetGarden,
+  ruinProgress,
   trample,
 } = await import("../src/garden.ts");
 const { PRICES, addCoins, getCoins, rainbowDone, resetHud } = await import(
@@ -182,6 +183,30 @@ check(
   "the 8th stump loses once a third of the pool is banked",
   gardenStumped(),
 );
+
+// harvesting can never be what loses the wave: 14 stomps sit right under the
+// full-pool line of 15, and picking a bloom would otherwise drop that line to 14
+resetGarden();
+for (let i = 0; i < 14; i++) {
+  trample(fs[i]);
+}
+fs[14].growth = 1;
+harvestAtPosition(fs[14].x, fs[14].y);
+check("harvesting at the brink doesn't lose the wave", !gardenStumped());
+trample(fs[15]);
+check("the next stomp still loses it", gardenStumped());
+
+// the weather reads off the line, and clears once the wave can't be lost
+resetGarden();
+for (let i = 0; i < 12; i++) {
+  trample(fs[i]);
+}
+check("stomps toward the line raise the ruin reading", ruinProgress() > 0.5);
+for (const f of fs.slice(12)) {
+  f.growth = 1;
+  harvestAtPosition(f.x, f.y);
+}
+check("a harvested-out garden reads as safe", ruinProgress() === 0);
 
 // the floor keeps a near-emptied garden from ending on a single stomp:
 // 16 picked leaves a pool of 5, where ceil(5 * 0.7) = 4 but the line holds at 5

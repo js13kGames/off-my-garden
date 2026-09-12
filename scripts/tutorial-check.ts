@@ -152,6 +152,7 @@ t.toolUsed(0);
 const { startRing } = await import("../src/noise.ts");
 startRing();
 continueThrough(1); // runs the ring out; the sweep scares the uni, panel follows
+continueThrough(1); // the danger lesson sits between the tools and the start
 t.update(1); // burn the ready step's reveal delay
 t.draw(0);
 // the last lesson has a real Start button instead of a continue panel

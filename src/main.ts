@@ -16,6 +16,7 @@ import {
   gardenStumped,
   harvestAtPosition,
   resetGarden,
+  ruinProgress,
   sellAt,
   updateGarden,
 } from "./garden";
@@ -52,6 +53,7 @@ import {
 import {
   begin,
   completeTutorial,
+  dangerShown,
   draw as drawTutorialPanel,
   flowersShown,
   harvested,
@@ -81,6 +83,9 @@ let time = 0;
 // fixed beat instead — long enough that the tap that lost the run can't
 // bounce straight off the card.
 const LOSS_HOLD = 2;
+// Ruin level the danger lesson fakes: well past the storm's threshold, so the
+// tutorial shows a clear warning sky without faking the loss downpour itself.
+const DEMO_RUIN = 0.9;
 let lostFor = 0;
 
 // Tools all work the same way: the button fires them where the leprechaun
@@ -251,6 +256,8 @@ start(
         setBusy(false);
       }
       updateHud(dt);
+      // the danger lesson shows the weather it warns about, then clears it
+      updateRain(dt, dangerShown() ? DEMO_RUIN : 0);
       if (isFinished()) {
         finishTutorial();
       }
@@ -275,6 +282,7 @@ start(
       setBusy(false);
     }
     updateHud(dt);
+    updateRain(dt, ruinProgress()); // clouds gather as the garden nears ruin
     if (rainbowDone()) {
       state = State.Won; // sim freezes from the next tick on
       setTrack(Track.Win);
@@ -304,9 +312,7 @@ start(
     drawNoise();
     drawLep(time);
     drawCanopy(); // trees overhang everything on the ground
-    if (state === State.Lost) {
-      drawRain();
-    }
+    drawRain(); // no-op under a clear sky
     // HUD and toolbar strips. Painted here rather than under the playfield: the
     // canopy's crowns overhang the field edges, and these strips are what crops
     // them back to it.

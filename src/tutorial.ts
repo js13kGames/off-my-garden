@@ -92,6 +92,9 @@ export function begin() {
 export const isFinished = () => finished;
 // Flowers stay hidden until the growth lesson reveals them.
 export const flowersShown = () => step >= Step.Grow;
+// The danger lesson brings the weather on so the player sees the warning it
+// describes, instead of meeting a gathering storm for the first time mid-run.
+export const dangerShown = () => step === Step.Danger;
 // Harvesting unlocks with its lesson so the demonstration flower can't be
 // picked before the collection instruction has even appeared.
 export const harvestingOn = () => step >= Step.Harvest;
@@ -362,6 +365,7 @@ function lesson(): {
         lines: [
           "Careful: if unicorns trample most",
           "of the garden, it's game over.",
+          "Rain gathers when ruin is close.",
           "Picked flowers are safe: harvest early!",
         ],
         hint: true,

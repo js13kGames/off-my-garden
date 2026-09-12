@@ -327,9 +327,15 @@ let stumped = 0;
 // they leave the ruin pool instead of padding it. Both harvest paths (tap and
 // walk-over) funnel through bank().
 let picked = 0;
+// Shrinking the pool also lowers the ruin line, which could drop it to at or
+// below what's already stumped — harvesting a flower would then lose the wave
+// on the spot. The line never falls past the stomps already taken, so only a
+// unicorn can ever end a season.
+let ruinFloor = 0;
 const bank = (f: Flower) => {
   f.state = FlowerState.Gone;
   picked++;
+  ruinFloor = Math.max(ruinFloor, stumped + 1);
 };
 
 // Flattens a flower; it stays gone for the rest of the wave once the
@@ -383,9 +389,30 @@ export const gardenBare = () =>
 const RUIN_FRACTION = 0.7;
 const MIN_RUIN = 5;
 const TOTAL_FLOWERS = beds.reduce((n, b) => n + b.length, 0);
-export const gardenStumped = () =>
-  stumped >=
-  Math.max(MIN_RUIN, Math.ceil((TOTAL_FLOWERS - picked) * RUIN_FRACTION));
+const ruinLine = () =>
+  Math.max(
+    MIN_RUIN,
+    ruinFloor,
+    Math.ceil((TOTAL_FLOWERS - picked) * RUIN_FRACTION),
+  );
+export const gardenStumped = () => stumped >= ruinLine();
+
+// How far along the wave is to being lost, 0..1 — read off the line, not the
+// raw stomp count, so it stays honest when a harvest shrinks the pool. Reports
+// 0 once fewer flowers are left standing than the stomps still needed to reach
+// the line: the wave can no longer be lost, so the weather says so. Harvesting
+// the garden out is the common way there, and gardenBare() is that same
+// condition at its extreme.
+export function ruinProgress(): number {
+  const alive = beds.reduce(
+    (n, b) => n + b.filter((f) => f.state === FlowerState.Growing).length,
+    0,
+  );
+  if (alive < ruinLine() - stumped) {
+    return 0;
+  }
+  return Math.min(1, stumped / ruinLine());
+}
 
 // Fingers are fat and flowers sit ~23 px apart in a cluster — half that
 // spacing is a generous target that still can't hit two flowers at once.
@@ -469,6 +496,7 @@ function mirrorBeds(flip: boolean) {
 export function resetGarden(wave = 1) {
   stumped = 0;
   picked = 0;
+  ruinFloor = 0;
   mirrorBeds(wave % 2 === 0);
   for (const bed of beds) {
     for (const f of bed) {
