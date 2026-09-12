@@ -9,7 +9,9 @@ import { musicOn, Sfx, sfx, toggleMusic } from "./music";
 // Cheapest is the noisemaker — it already pays a second cost in the walk over
 // there; the attractor is dearest because one placement reshapes traffic for
 // the rest of the wave.
-export const PRICES = [30, 40, 50];
+// The water bottle is the outlier: it buys growth rather than safety, so it's
+// cheap enough to use several times a wave.
+export const PRICES = [30, 40, 50, 10];
 let coins = PRICES[0] + PRICES[1];
 const COIN_VALUE = 5;
 

@@ -215,6 +215,7 @@ export type Flower = {
   state: FlowerState;
   anim: number; // seconds left in the current death/wither animation
   kind: number; // index into SHAPES — the head's petal layout
+  watered: boolean; // boost already claimed this wave — one per flower
 };
 
 // Petal layouts. One head is n petals on a ring around the stem tip plus a
@@ -236,8 +237,12 @@ const SHAPES = [
 // grow bed sizes over time, not because the garden has any tile grid.
 export type Bed = Flower[];
 
-// Full growth takes ~20 s, with per-flower variance so beds don't pulse in sync
+// Full growth takes ~20 s, with per-flower variance so beds don't pulse in sync.
+// Re-rolled at every wave reset, since watering scales the rate in place.
 const GROW_TIME = 20;
+const growRate = () => (0.8 + Math.random() * 0.4) / GROW_TIME;
+// What one watering multiplies a flower's rate by, for the rest of the wave
+const WATER_BOOST = 1.3;
 // How long a trampled flower stays flattened before the slot goes bare
 const FLAT_TIME = 1.2;
 // How long a surviving flower takes to droop away between waves
@@ -264,11 +269,12 @@ function makeBed(cx: number, cy: number): Bed {
     x: p.x,
     y: p.y,
     growth: 0,
-    rate: (0.8 + Math.random() * 0.4) / GROW_TIME,
+    rate: growRate(),
     hue: RAINBOW[(Math.random() * RAINBOW.length) | 0],
     state: FlowerState.Growing,
     anim: 0,
     kind: (Math.random() * SHAPES.length) | 0,
+    watered: false,
   }));
   // no soil rect to layer on, so draw order has to fake the depth: lower
   // flowers (larger y) drawn last so they sit in front of ones behind them
@@ -324,6 +330,26 @@ export function trample(f: Flower) {
   f.anim = FLAT_TIME;
   stumped++;
   sfx(Sfx.Stomp);
+}
+
+// Speeds up every still-growing flower the watering ring has reached. Called
+// each frame with the ring's current radius, so the `watered` flag is what
+// keeps one sweep from boosting the same flower over and over — the same
+// trick scareUnicorns uses on already-scared unis. It also makes a second
+// watering this wave a no-op.
+export function waterFlowers(x: number, y: number, r: number) {
+  for (const bed of beds) {
+    for (const f of bed) {
+      if (
+        !f.watered &&
+        f.state === FlowerState.Growing &&
+        Math.hypot(f.x - x, f.y - y) < r
+      ) {
+        f.rate *= WATER_BOOST;
+        f.watered = true;
+      }
+    }
+  }
 }
 
 // Visible, alive, and hittable — what unicorns notice/trample and what the
@@ -430,6 +456,9 @@ export function resetGarden(wave = 1) {
       f.growth = 0;
       f.state = FlowerState.Growing;
       f.anim = 0;
+      // fresh roll, or last wave's waterings would compound forever
+      f.rate = growRate();
+      f.watered = false;
     }
   }
 }

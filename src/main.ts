@@ -88,6 +88,11 @@ function useTool(tool: number) {
     placeRepellent(lep.x, lep.y);
   } else if (tool === 2) {
     placeAttractor(lep.x, lep.y);
+  } else if (tool === 3) {
+    // Same sweeping ring as the noisemaker, boosting flowers instead of
+    // scaring unis — see startRing's `water` flag.
+    startRing(true);
+    setBusy(true);
   }
 }
 

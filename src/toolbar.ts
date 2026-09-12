@@ -6,6 +6,7 @@ const TOOLS = [
   { icon: "\u{1F50A}", label: "Noise", left: 5 }, // 🔊 noise
   { icon: "\u2618\uFE0F", label: "Repel", left: 5 }, // ☘️ repel
   { icon: "\u{1F48E}", label: "Attract", left: 2 }, // 💎 attract
+  { icon: "\u{1F4A7}", label: "Water", left: 5 }, // 💧 water
 ];
 
 let busy = false;
@@ -31,9 +32,10 @@ const gated = (i: number) => gate !== TOOL_ALL && gate !== i;
 const cost = (i: number) => (gate === TOOL_ALL ? PRICES[i] : 0);
 
 // Buttons sit in the strip below the playfield, evenly spaced with side margins
-const BTN_W = 104;
+// Four buttons in a 360-wide view: 4x80 + 3x10 leaves 5px margins either side.
+const BTN_W = 80;
 const BTN_H = 44;
-const GAP = 12;
+const GAP = 10;
 const BTN_Y = FIELD_BOTTOM + 8;
 const btnX = (i: number) =>
   (VIEW_W - TOOLS.length * BTN_W - (TOOLS.length - 1) * GAP) / 2 +
@@ -79,16 +81,16 @@ export function drawToolbar() {
     ctx.fill();
     ctx.globalAlpha = afford ? 1 : 0.4;
     // tool icon on the left; bag + price on top right, the word under them
-    const textX = x + 42;
-    ctx.font = "24px sans-serif";
+    const textX = x + 32;
+    ctx.font = "20px sans-serif";
     ctx.fillStyle = "#fff";
-    ctx.fillText(TOOLS[i].icon, x + 22, BTN_Y + BTN_H / 2);
+    ctx.fillText(TOOLS[i].icon, x + 16, BTN_Y + BTN_H / 2);
     ctx.textAlign = "left";
-    ctx.font = "14px sans-serif";
+    ctx.font = "12px sans-serif";
     ctx.fillText("\u{1F4B0}", textX, BTN_Y + 15);
-    ctx.font = "bold 14px sans-serif";
+    ctx.font = "bold 12px sans-serif";
     ctx.fillStyle = "#ffd54a";
-    ctx.fillText(`${PRICES[i]}`, textX + 18, BTN_Y + 15);
+    ctx.fillText(`${PRICES[i]}`, textX + 15, BTN_Y + 15);
     ctx.font = "10px sans-serif";
     ctx.fillStyle = "#cfe0f5";
     ctx.fillText(TOOLS[i].label, textX + TOOLS[i].left, BTN_Y + 32);

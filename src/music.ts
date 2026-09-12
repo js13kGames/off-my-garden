@@ -181,6 +181,7 @@ export const enum Sfx {
   Ring,
   Coin,
   Place,
+  Water,
 }
 
 // [semitones played in sequence, note duration, waveform, gain, gap between
@@ -194,6 +195,7 @@ const SFX: [number[], number, OscillatorType, number, number, number?][] = [
   [[19, 12, 5, -2], 0.07, "sawtooth", 0.18, 0.04], // Ring — descending sweep
   [[24, 31], 0.06, "square", 0.24, 0.05], // Coin — fast two-note up
   [[12], 0.06, "triangle", 0.2, 0], // Place — single blip
+  [[0, 7], 0.09, "triangle", 0.18, 0.06], // Water — soft rising pour, the gentle inverse of Ring
 ];
 
 const lastPlayed: number[] = [];

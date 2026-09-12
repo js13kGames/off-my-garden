@@ -347,7 +347,7 @@ function lesson(): {
             lines: [
               "Repel protects a patch.",
               "Attract lures unicorns away.",
-              "Place it away from flowers.",
+              "Water makes flowers grow faster.",
             ],
             hint: true,
           };
