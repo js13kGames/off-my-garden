@@ -37,7 +37,7 @@ export function updateWaves(dt: number) {
       spawned = 0;
       spawnTimer = spawnEveryFor(wave);
       // new growing season: every flower starts over at stage 0
-      resetGarden();
+      resetGarden(wave);
     }
     return;
   }

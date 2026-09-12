@@ -405,10 +405,26 @@ export function harvestAtPosition(x: number, y: number): Flower | undefined {
   return best;
 }
 
+// Even waves play the zigzag mirrored left-to-right, so the beds aren't in the
+// same three spots every wave and the player can't camp one lane forever.
+let mirrored = false;
+function mirrorBeds(flip: boolean) {
+  if (flip === mirrored) {
+    return;
+  }
+  mirrored = flip;
+  for (const bed of beds) {
+    for (const f of bed) {
+      f.x = VIEW_W - f.x;
+    }
+  }
+}
+
 // At each wave start every flower starts over at stage 0, survivors and all —
 // waves are self-contained growing seasons, not a garden that just keeps aging.
-export function resetGarden() {
+export function resetGarden(wave = 1) {
   stumped = 0;
+  mirrorBeds(wave % 2 === 0);
   for (const bed of beds) {
     for (const f of bed) {
       f.growth = 0;
