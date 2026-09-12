@@ -107,7 +107,7 @@ export const enum Sfx {
 const SFX: [number[], number, OscillatorType, number, number, number?][] = [
   [[24, 31], 0.09, "triangle", 0.22, 0.07], // Notice — rising "huh?"
   [[-5, -12], 0.16, "square", 0.2, 0.05], // Block — descending thunk
-  [[-9], 0.14, "sine", 0.35, 0, 10], // Stomp — round low thump, pitch falling through it
+  [[7, -5], 0.12, "sawtooth", 0.4, 0.04, 12], // Stomp — crunch: bright bite into a falling low
   [[19, 12, 5, -2], 0.07, "sawtooth", 0.18, 0.04], // Ring — descending sweep
   [[24, 31], 0.06, "square", 0.24, 0.05], // Coin — fast two-note up
   [[12], 0.06, "triangle", 0.2, 0], // Place — single blip
