@@ -11,7 +11,7 @@ export const enum Track {
 }
 
 const BASE = 220; // A3, semitone 0
-const VOLUME = 0.32; // master bus — music and SFX share it, so this is the whole mix
+const VOLUME = 0.65; // master bus — music and SFX share it, so this is the whole mix
 const BAR_STEPS = 8;
 // [roots (chord progression, in semitones), melody (scale degree per step,
 // "." = rest), step duration in seconds, melody waveform, melody gain,
