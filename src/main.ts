@@ -22,6 +22,7 @@ import {
   drawHud,
   getCoins,
   musicButtonTap,
+  rainbowArcFinished,
   rainbowDone,
   updateHud,
 } from "./hud";
@@ -92,7 +93,10 @@ canvas.addEventListener("pointerdown", (e) => {
     return;
   }
   if (state === State.Won) {
-    return;
+    if (rainbowArcFinished()) {
+      location.reload();
+    }
+    return; // ignore taps mid-reveal so the win can't be dismissed early
   }
   if (state === State.Lost) {
     // ponytail: reload is the reset — swap for in-place resets if the flash
@@ -189,14 +193,16 @@ start(
     }
     drawHud();
     drawToolbar();
-    if (state === State.Lost) {
-      drawGameOver();
+    if (state === State.Won) {
+      drawEndCard(true);
+    } else if (state === State.Lost) {
+      drawEndCard(false);
     }
     ctx.restore();
   },
 );
 
-function drawGameOver() {
+function drawEndCard(won: boolean) {
   const w = 220;
   const h = 120;
   const x = (VIEW_W - w) / 2;
@@ -206,9 +212,9 @@ function drawGameOver() {
   ctx.roundRect(x, y, w, h, 10);
   ctx.fill();
   ctx.textAlign = "center";
-  ctx.fillStyle = "#ff6b6b";
+  ctx.fillStyle = won ? "#7cffb0" : "#ff6b6b";
   ctx.font = "bold 20px sans-serif";
-  ctx.fillText("GAME OVER", VIEW_W / 2, y + 32);
+  ctx.fillText(won ? "YOU WIN!" : "GAME OVER", VIEW_W / 2, y + 32);
   ctx.fillStyle = "#fff";
   ctx.font = "15px sans-serif";
   ctx.fillText(`Waves survived: ${wavesSurvived()}`, VIEW_W / 2, y + 60);

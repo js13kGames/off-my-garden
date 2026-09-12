@@ -38,6 +38,22 @@ export function rainbowDone(): boolean {
   return arcT >= 0;
 }
 
+// True once the draw-in animation has fully played, not just started —
+// gates the "tap to restart" so a win can't be dismissed mid-reveal.
+export function rainbowArcFinished(): boolean {
+  return arcT >= ARC_TIME;
+}
+
+// Sparkles scattered across the arch's span, fixed once so they don't jitter
+// frame to frame — each twinkles on its own phase/speed via a sine wave.
+const SPARKLE_COUNT = 24;
+const sparkles = Array.from({ length: SPARKLE_COUNT }, () => ({
+  a: Math.random(), // 0..1 across the arc's angular span
+  r: 130 + Math.random() * 220, // spans the band stack (~164-260) and spills over/under it
+  phase: Math.random() * Math.PI * 2,
+  speed: 2 + Math.random() * 2,
+}));
+
 export function getCoins(): number {
   return coins;
 }
@@ -59,7 +75,7 @@ export function updateHud(dt: number) {
 }
 
 // Seven bands, one per rainbow colour — shared by the meter fill and the sweep.
-const HUES = [0, 45, 90, 135, 200, 260, 300];
+const HUES = [0, 30, 60, 120, 240, 275, 300];
 
 function rainbowGradient(x0: number, x1: number) {
   const g = ctx.createLinearGradient(x0, 0, x1, 0);
@@ -135,8 +151,8 @@ function drawRainbowArc() {
     return;
   }
   const k = Math.min(1, arcT / ARC_TIME);
-  // capped so bands read as translucent even at full reveal
-  const ALPHA = 0.5;
+  // near-opaque — at 0.5 the green lawn bled through and muddied every band
+  const ALPHA = 0.75;
   const cx = VIEW_W / 2;
   const cy = FIELD_BOTTOM - 120;
   // 60% of a half circle, centred on straight up so it reads as an arch, not a horizon-to-horizon rainbow
@@ -175,7 +191,41 @@ function drawRainbowArc() {
     ctx.arc(0, 0, r, startAngle, endAngle);
     ctx.stroke();
   });
+  // Twinkling plus-shaped sparkles scattered over the revealed part of the
+  // arch, drawn in the same stretched space so they sit flush against the bands.
+  for (const s of sparkles) {
+    const angle = leftEdge + span * s.a;
+    if (angle > endAngle) {
+      continue; // not yet drawn in
+    }
+    const twinkle = 0.5 + 0.5 * Math.sin(arcT * s.speed + s.phase);
+    if (twinkle < 0.15) {
+      continue; // fully dim — skip the draw
+    }
+    const px = Math.cos(angle) * s.r;
+    const py = Math.sin(angle) * s.r;
+    drawSparklePlus(px, py, 10.5, twinkle);
+  }
   ctx.restore();
+}
+
+// A plus sign whose arms fade to transparent at both ends, drawn as two
+// gradient bars rather than a single sprite so the fade is stretch-free.
+function drawSparklePlus(px: number, py: number, size: number, alpha: number) {
+  const half = size / 2;
+  const thickness = size * 0.06;
+  const gh = ctx.createLinearGradient(px - half, py, px + half, py);
+  gh.addColorStop(0, "rgba(255,255,255,0)");
+  gh.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+  gh.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gh;
+  ctx.fillRect(px - half, py - thickness / 2, size, thickness);
+  const gv = ctx.createLinearGradient(px, py - half, px, py + half);
+  gv.addColorStop(0, "rgba(255,255,255,0)");
+  gv.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+  gv.addColorStop(1, "rgba(255,255,255,0)");
+  ctx.fillStyle = gv;
+  ctx.fillRect(px - thickness / 2, py - half, thickness, size);
 }
 
 export function drawHud() {
