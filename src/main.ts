@@ -213,7 +213,9 @@ canvas.addEventListener("pointerdown", (e) => {
         return; // sell taps are consumed — he stays where he is
       }
     }
-    if (p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
+    // taps off the logical viewport (letterbox) or on the HUD/toolbar
+    // strips don't move him
+    if (p.x > 0 && p.x < VIEW_W && p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
       sendLepTo(p.x, p.y);
       moved();
     }
@@ -229,8 +231,9 @@ canvas.addEventListener("pointerdown", (e) => {
     addCoins(f);
     return; // sell taps are consumed — he stays where he is
   }
-  // taps on the HUD/toolbar strips don't move him
-  if (p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
+  // taps off the logical viewport (letterbox) or on the HUD/toolbar strips
+  // don't move him
+  if (p.x > 0 && p.x < VIEW_W && p.y > FIELD_TOP && p.y < FIELD_BOTTOM) {
     sendLepTo(p.x, p.y);
   }
 });

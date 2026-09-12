@@ -237,6 +237,10 @@ sendLepTo(180, FIELD_TOP - 50);
 check("the top edge clamps inside the field", lep.ty === FIELD_TOP + 12);
 sendLepTo(180, FIELD_BOTTOM + 100);
 check("the bottom edge clamps above the toolbar", lep.ty === FIELD_BOTTOM - 8);
+sendLepTo(-211, 500);
+check("a left-of-screen x clamps to the lawn edge", lep.tx === 0);
+sendLepTo(VIEW_W + 211, 500);
+check("a right-of-screen x clamps to the lawn edge", lep.tx === VIEW_W);
 
 sendLepTo(180, 100);
 updateLep(1);

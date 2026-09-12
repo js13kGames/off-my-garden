@@ -1,4 +1,4 @@
-import { ctx } from "./canvas";
+import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM, FIELD_TOP } from "./garden";
 
 // He is a character, not a cursor: crossing the whole garden takes ~5 s.
@@ -24,7 +24,9 @@ export const lep = {
 };
 
 export function sendLepTo(x: number, y: number) {
-  lep.tx = x;
+  // both axes clamped — a letterbox click would otherwise send him past the
+  // left/right lawn edge (only y was clamped before, x passed through raw)
+  lep.tx = Math.min(Math.max(x, 0), VIEW_W);
   lep.ty = Math.min(Math.max(y, FIELD_TOP + 12), FIELD_BOTTOM - 8);
   lep.moving = true;
 }
