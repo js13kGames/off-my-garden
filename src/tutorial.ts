@@ -23,10 +23,11 @@ const enum Step {
   Rewards,
   Threat,
   Tools,
+  Danger, // the losing condition, on its own so it doesn't ride along with a tip
   Ready,
 }
 
-const STEP_COUNT = 7;
+const STEP_COUNT = 8;
 // The growth lesson runs the garden clock 5x so the demonstration flowers
 // reach the pre-bloom stage in ~2.5 s instead of the ~13 s a real season takes.
 const GROWTH_ACCEL = 5;
@@ -69,7 +70,8 @@ const DEFAULT_REVEAL = 1;
 const REVEAL_DELAYS: Partial<Record<Step, number>> = {
   [Step.Harvest]: 0,
   [Step.Rewards]: 0.5, // harvest → rewards reads as one beat, not a new scene
-  [Step.Ready]: 0.5, // tools → ready ditto
+  [Step.Danger]: 0.5, // tools → danger ditto
+  [Step.Ready]: 0.5, // danger → ready ditto
 };
 let revealDelay = 0;
 
@@ -204,6 +206,8 @@ function doContinue() {
     }
   } else if (step === Step.Tools && phase === 1) {
     setToolGate(TOOL_NONE); // lesson over — tools lock up again for practice
+    advance();
+  } else if (step === Step.Danger) {
     advance();
   }
 }
@@ -351,12 +355,22 @@ function lesson(): {
             ],
             hint: true,
           };
+    case Step.Danger:
+      // the one lesson about losing — kept on its own panel so it isn't read
+      // as another tip. Wording tracks gardenStumped()'s "most of what's left".
+      return {
+        lines: [
+          "Careful: if unicorns trample most",
+          "of the garden, it's game over.",
+          "Picked flowers are safe: harvest early!",
+        ],
+        hint: true,
+      };
     case Step.Ready:
       // last lesson: a real button instead of the click-to-continue hint
       return {
         lines: [
           "Harvest flowers,  complete your rainbow.",
-          "Don't let unicorns trample them all!",
           "Fresh flowers grow each season.",
         ],
         start: true,
