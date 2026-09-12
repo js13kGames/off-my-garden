@@ -323,6 +323,15 @@ const DECORATIONS = scatter(TUFT_COUNT + PEBBLE_COUNT, () => {
 // good, so a flower can never be counted twice.
 let stumped = 0;
 
+// Counts flowers the player picked this wave — they're banked, not lost, so
+// they leave the ruin pool instead of padding it. Both harvest paths (tap and
+// walk-over) funnel through bank().
+let picked = 0;
+const bank = (f: Flower) => {
+  f.state = FlowerState.Gone;
+  picked++;
+};
+
 // Flattens a flower; it stays gone for the rest of the wave once the
 // flatten animation (below) finishes.
 export function trample(f: Flower) {
@@ -364,10 +373,19 @@ export const gardenBare = () =>
   !beds.some((b) => b.some((f) => f.state === FlowerState.Growing));
 
 // Only stumping loses the garden — harvested and withered flowers are the
-// player's own doing, and gardenBare() can't tell the three apart. Every
-// flower in every bed has been trampled once stumped hits the total count.
+// player's own doing. Requiring *every* flower to be trampled made the season
+// unloseable the moment one bloom was picked: a picked slot can never be
+// stumped, so the count could never reach the total. Instead the wave is lost
+// once most of what was left to defend is flattened, and picked flowers leave
+// that pool rather than shielding it — banked, not defended. The floor keeps a
+// near-emptied garden (pool of one or two) from ending on a single stomp.
+// ponytail: one flat fraction, no per-flower health — playtest before more.
+const RUIN_FRACTION = 0.7;
+const MIN_RUIN = 5;
+const TOTAL_FLOWERS = beds.reduce((n, b) => n + b.length, 0);
 export const gardenStumped = () =>
-  stumped === beds.reduce((n, b) => n + b.length, 0);
+  stumped >=
+  Math.max(MIN_RUIN, Math.ceil((TOTAL_FLOWERS - picked) * RUIN_FRACTION));
 
 // Fingers are fat and flowers sit ~23 px apart in a cluster — half that
 // spacing is a generous target that still can't hit two flowers at once.
@@ -403,7 +421,7 @@ export function sellAt(
     }
   }
   if (best) {
-    best.state = FlowerState.Gone;
+    bank(best);
   }
   return best;
 }
@@ -426,7 +444,7 @@ export function harvestAtPosition(x: number, y: number): Flower | undefined {
     }
   }
   if (best) {
-    best.state = FlowerState.Gone;
+    bank(best);
   }
   return best;
 }
@@ -450,6 +468,7 @@ function mirrorBeds(flip: boolean) {
 // waves are self-contained growing seasons, not a garden that just keeps aging.
 export function resetGarden(wave = 1) {
   stumped = 0;
+  picked = 0;
   mirrorBeds(wave % 2 === 0);
   for (const bed of beds) {
     for (const f of bed) {

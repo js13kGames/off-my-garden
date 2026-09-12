@@ -123,8 +123,10 @@ function rainbowGradient(x0: number, x1: number) {
 
 // Meter sits between the coin count and the two HUD buttons — narrowed and
 // pulled left when the reset button joined the music toggle on the right.
-const METER_X = 96;
-const METER_W = 140;
+// Left edge clears a four-digit coin count at 16px (the count realistically
+// tops out at three), and the width runs it up to the buttons.
+const METER_X = 72;
+const METER_W = 164;
 const METER_H = 14;
 
 function drawMeter() {

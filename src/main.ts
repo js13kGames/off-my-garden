@@ -72,7 +72,7 @@ const enum State {
   Tutorial, // guided first run — practice garden, no unicorns, no win/loss
   Playing,
   Won, // rainbow complete — sim frozen, input ignored
-  Lost, // every flower stumped — sim frozen, rain falls, tap restarts
+  Lost, // too many flowers stumped — sim frozen, rain falls, tap restarts
 }
 let state: State = State.Idle;
 let time = 0;
@@ -419,7 +419,7 @@ const LOSS_LINES = (n: number) => [
     "the garden flat.",
   ],
   [
-    `${n} unicorns later, not a petal`,
+    `${n} unicorns later, barely a petal`,
     "left standing. The rainbow",
     "will have to wait.",
   ],
