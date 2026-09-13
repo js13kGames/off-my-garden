@@ -1,6 +1,8 @@
 import { ctx, VIEW_W } from "./canvas";
-import { FIELD_BOTTOM } from "./garden";
+import { FIELD_BOTTOM, wouldWater } from "./garden";
 import { getCoins, PRICES, spendCoins } from "./hud";
+import { lep } from "./leprechaun";
+import { WATER_MAX } from "./noise";
 
 const TOOLS = [
   { icon: "\u{1F50A}", label: "Noise", left: 5 }, // 🔊 noise
@@ -27,6 +29,13 @@ export function setToolGate(g: number) {
 }
 
 const gated = (i: number) => gate !== TOOL_ALL && gate !== i;
+// The tools all fire where the lep stands, so the toolbar can tell in advance
+// when one would do nothing: water is the only tool with a possible no-op —
+// every flower in reach already boosted, mature, or gone. Charging for that
+// reads as a broken button, so it greys out instead.
+const WATER = 3;
+const usable = (i: number) =>
+  i !== WATER || wouldWater(lep.x, lep.y, WATER_MAX);
 // A gate other than TOOL_ALL means the tutorial is driving: practice tools are
 // free, so missed tries can't strand the player at 0 coins with no way on.
 const cost = (i: number) => (gate === TOOL_ALL ? PRICES[i] : 0);
@@ -44,7 +53,8 @@ const btnX = (i: number) =>
 /**
  * Tap routing for the toolbar strip. Returns the tool index when an
  * affordable button is tapped (spends its price), or -1 for misses, tools
- * the player can't afford, or when another tool is busy.
+ * the player can't afford, tools that would have no effect, or when another
+ * tool is busy.
  */
 export function toolbarTap(x: number, y: number): number {
   if (y < BTN_Y || y > BTN_Y + BTN_H) {
@@ -53,7 +63,7 @@ export function toolbarTap(x: number, y: number): number {
   for (let i = 0; i < TOOLS.length; i++) {
     const bx = btnX(i);
     if (x >= bx && x <= bx + BTN_W) {
-      if (busy || gated(i) || getCoins() < cost(i)) {
+      if (busy || gated(i) || !usable(i) || getCoins() < cost(i)) {
         return -1;
       }
       spendCoins(cost(i));
@@ -73,7 +83,9 @@ export function drawToolbar() {
   ctx.textBaseline = "middle";
   for (let i = 0; i < TOOLS.length; i++) {
     const x = btnX(i);
-    const afford = getCoins() >= cost(i) && !gated(i);
+    // one dim state for every reason the tap would bounce, so the button
+    // always looks the way it behaves — including the ring's busy beat
+    const afford = !busy && usable(i) && getCoins() >= cost(i) && !gated(i);
     // button plate
     ctx.fillStyle = afford ? "#2a4a73" : "#16283f";
     ctx.beginPath();

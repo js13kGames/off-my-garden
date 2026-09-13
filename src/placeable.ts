@@ -18,8 +18,10 @@ const ATTRACT_RADIUS = 100;
 // Placeables expire so the garden doesn't stay fenced off with permanent
 // repellents/attractors bought over a long run.
 const LIFE = 12;
-// Alpha ramps down over the last seconds so the player sees it about to go
-const FADE = 2;
+// Alpha ramps down over the last seconds so the player sees it about to go.
+// Nearly half the lifetime: two seconds of fade read as a sudden pop-out, and
+// the point is to give time to react before the lawn is open again.
+const FADE = 5;
 
 export function placeRepellent(x: number, y: number) {
   repellents.push({ x, y, life: LIFE });

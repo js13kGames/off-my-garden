@@ -81,6 +81,7 @@ const {
   updatePlaceables,
 } = await import("../src/placeable.ts");
 const { VIEW_W } = await import("../src/canvas.ts");
+const { toolButtonCenter, toolbarTap } = await import("../src/toolbar.ts");
 const { raidOver, scareUnicorns, spawnUnicorn, unicorns, updateUnicorns } =
   await import("../src/unicorn.ts");
 const { resetWaves, updateWaves } = await import("../src/wave.ts");
@@ -411,6 +412,27 @@ const boosted = wet.rate;
 startRing(true);
 updateNoise(1);
 check("a second watering is a no-op", wet.rate === boosted);
+
+// --- the toolbar refuses a watering that would boost nothing ---
+resetHud();
+addCoins(50);
+const waterBtn = toolButtonCenter(3);
+const purse = getCoins();
+check(
+  "water is refused when every flower in reach is already boosted",
+  toolbarTap(waterBtn.x, waterBtn.y) === -1 && getCoins() === purse,
+);
+wet.watered = false;
+wet.growth = 1; // mature: a faster rate buys it nothing
+check(
+  "water is refused when the flower in reach is fully grown",
+  toolbarTap(waterBtn.x, waterBtn.y) === -1 && getCoins() === purse,
+);
+wet.growth = 0.5;
+check(
+  "water is sold when a growing flower is in reach",
+  toolbarTap(waterBtn.x, waterBtn.y) === 3 && getCoins() < purse,
+);
 
 // --- trample: hooves only hurt what has sprouted past a sprout ---
 resetField();

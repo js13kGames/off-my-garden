@@ -387,17 +387,25 @@ export function trample(f: Flower) {
 export function waterFlowers(x: number, y: number, r: number) {
   for (const bed of beds) {
     for (const f of bed) {
-      if (
-        !f.watered &&
-        f.state === FlowerState.Growing &&
-        Math.hypot(f.x - x, f.y - y) < r
-      ) {
+      if (boostable(f) && Math.hypot(f.x - x, f.y - y) < r) {
         f.rate *= WATER_BOOST;
         f.watered = true;
       }
     }
   }
 }
+
+// A faster rate is worth nothing to a flower that is already done growing, so
+// mature blooms are not boostable either — the toolbar reads the same test to
+// refuse a watering that would change nothing.
+const boostable = (f: Flower) =>
+  !f.watered && f.state === FlowerState.Growing && f.growth < 1;
+
+/** True when a water ring of radius `r` at (x, y) would actually boost something. */
+export const wouldWater = (x: number, y: number, r: number) =>
+  beds.some((bed) =>
+    bed.some((f) => boostable(f) && Math.hypot(f.x - x, f.y - y) < r),
+  );
 
 // Visible, alive, and hittable — what unicorns notice/trample and what the
 // player can sell. A flower under this stays a no-op for both.
@@ -656,6 +664,14 @@ function drawFlower(f: Flower, time: number) {
   ctx.lineTo(0, 4 - stem);
   ctx.stroke();
   const top = 4 - stem;
+  if (f.watered && f.state === FlowerState.Growing) {
+    // a dewdrop at the stem base marks the boost for the rest of the wave, so
+    // the player can see which flowers a second watering would waste coins on
+    ctx.fillStyle = "rgba(120,180,255,0.85)";
+    ctx.beginPath();
+    ctx.arc(3, 3, 1.6, 0, 7);
+    ctx.fill();
+  }
   if (g < STAGE_BUD) {
     // sprout: tiny leaf
     ctx.fillStyle = "#3c9a3c";

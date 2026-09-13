@@ -8,7 +8,7 @@ const RING_DURATION = 1;
 export const RING_MAX = 100;
 // The bottle's reach is arm's length, not a shout's: wide enough for the bed
 // he's standing in (BED_RADIUS is 36), too small to catch a neighbouring one.
-const WATER_MAX = 55;
+export const WATER_MAX = 55;
 let ringT = 1; // starts finished (no animation)
 // The ring is anchored where the noisemaker went off; the lep can walk
 // away mid-ring and both the visual and the scare front must stay put.
