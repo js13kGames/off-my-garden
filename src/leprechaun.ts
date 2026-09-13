@@ -1,5 +1,6 @@
 import { ctx, VIEW_W } from "./canvas";
 import { FIELD_BOTTOM, FIELD_TOP } from "./garden";
+import { WIN_BEAT } from "./music";
 
 // He is a character, not a cursor: crossing the whole garden takes ~5 s.
 const SPEED = 110;
@@ -98,7 +99,7 @@ COAT_SHADE.addColorStop(0, "rgba(0,0,0,0)");
 COAT_SHADE.addColorStop(0.89, "rgba(0,0,0,.13)");
 COAT_SHADE.addColorStop(1, "rgba(0,0,0,.34)");
 
-export function drawLep(time: number, mourn = false) {
+export function drawLep(time: number, mood = 0) {
   if (lep.blocking) {
     // the deflection ring: shown only while it's bending a path, so it reads
     // as feedback rather than a permanent radius like the placeables have
@@ -116,10 +117,19 @@ export function drawLep(time: number, mourn = false) {
     ctx.arc(lep.tx, lep.ty, 5 + 2 * Math.sin(time * 6), 0, 7);
     ctx.stroke();
   }
-  const bob = lep.moving ? Math.sin(time * 14) * 2 : 0;
+  // on a win he jigs to the fanfare: a hop on every kick, feet kicking out on
+  // the same count, and a sway on the half-time about his heels
+  const beat = time * (Math.PI / WIN_BEAT);
+  const dancing = mood > 0;
+  const bob =
+    (lep.moving ? Math.sin(time * 14) * 2 : 0) -
+    (dancing ? Math.abs(Math.sin(beat)) * 3 : 0);
   const flip = lep.moving && lep.tx < lep.x ? -1 : 1;
   ctx.save();
   ctx.translate(lep.x, lep.y + bob);
+  if (dancing) {
+    ctx.rotate(Math.sin(beat / 2) * 0.1);
+  }
   ctx.scale(flip * SPRITE_SCALE, SPRITE_SCALE);
   ctx.translate(-ANCHOR_X, -ANCHOR_Y);
   // ground shadow, same convention as the unicorn's
@@ -129,7 +139,11 @@ export function drawLep(time: number, mourn = false) {
   ctx.fill();
   // shoes swing opposite each other, each nudged in its own local space so
   // they don't drag the coat along with them
-  const step = lep.moving ? Math.sin(time * 14) * 1.2 : 0;
+  const step = lep.moving
+    ? Math.sin(time * 14) * 1.2
+    : dancing
+      ? Math.sin(beat) * 1.4
+      : 0;
   ctx.fillStyle = "#a3460e";
   ctx.strokeStyle = "#03160c";
   ctx.lineWidth = 0.4;
@@ -177,7 +191,7 @@ export function drawLep(time: number, mourn = false) {
   // head group: face, beard, hat and eyes ride together so mourning can hang
   // it off the neck and swing it slowly, the same tell the unicorns get
   ctx.save();
-  if (mourn) {
+  if (mood < 0) {
     ctx.translate(36.5, 68);
     ctx.rotate(0.3);
     ctx.translate(-36.5 + Math.sin(time * 2.5) * 0.9, -68);
@@ -216,10 +230,22 @@ export function drawLep(time: number, mourn = false) {
   ctx.fillStyle = "#fec799";
   ctx.fillRect(33.1, 64.7, 0.7, 1.2);
   ctx.fillStyle = "#0c0b08";
-  if (mourn) {
+  if (mood < 0) {
     // eyes shut: the same pair squashed down to lids at the bottom of the socket
     ctx.fillRect(37.1, 64.6, 0.9, 0.4);
     ctx.fillRect(38.7, 64.4, 0.9, 0.4);
+  } else if (mood > 0) {
+    // happy: both eyes arch into ^ ^, the unicorns' smile at his scale
+    ctx.strokeStyle = "#0c0b08";
+    ctx.lineWidth = 0.4;
+    for (const [x, y] of [
+      [37.5, 64.6],
+      [39.1, 64.4],
+    ]) {
+      ctx.beginPath();
+      ctx.arc(x, y, 0.6, 3.14, 6.28);
+      ctx.stroke();
+    }
   } else {
     ctx.fillRect(37.2, 63.7, 0.7, 1.4);
     ctx.fillRect(38.8, 63.5, 0.7, 1.4);

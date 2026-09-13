@@ -10,7 +10,7 @@ import {
   trample,
 } from "./garden";
 import { LEP_RADIUS, lep } from "./leprechaun";
-import { Sfx, sfx } from "./music";
+import { Sfx, sfx, WIN_BEAT } from "./music";
 import {
   inRepellent,
   nearestAttractor,
@@ -534,13 +534,17 @@ function dot(x: number, y: number, r: number) {
   ctx.fill();
 }
 
-function drawUnicorn(u: Unicorn, time: number, mourn: boolean) {
+function drawUnicorn(u: Unicorn, time: number, mood: number) {
   const flip = u.wx < u.x ? -1 : 1;
   // a jittery vibration is the readable tell at phone scale — the eye alone
   // is under a pixel across, so motion has to carry it
   const tremor = u.nervous ? Math.sin(time * 37 + u.x) * 0.5 : 0;
+  // on a win everything rides the fanfare's beat instead of its own idle
+  // timers: a bounce on every kick, legs prancing at the same rate
+  const beat = time * (Math.PI / WIN_BEAT) + u.x; // per-uni offset, no chorus line
+  const hop = mood > 0 ? Math.abs(Math.sin(beat)) * 3 : 0;
   ctx.save();
-  ctx.translate(u.x + tremor, u.y);
+  ctx.translate(u.x + tremor, u.y - hop);
   ctx.scale(flip * SPRITE_SCALE, SPRITE_SCALE);
   ctx.translate(-ANCHOR_X, -ANCHOR_Y);
   ctx.fillStyle = "rgba(0,0,0,.07)";
@@ -548,7 +552,7 @@ function drawUnicorn(u: Unicorn, time: number, mourn: boolean) {
   ctx.ellipse(98.97, 189.37, 6.77, 2.21, 0, 0, 7);
   ctx.fill();
   // the far pair is greyed so the near pair reads as the closer legs
-  drawLegs(FAR_LEGS, "#ccc", u.legPhase);
+  drawLegs(FAR_LEGS, "#ccc", mood > 0 ? beat : u.legPhase);
   // Tail and head ride on wall time rather than legPhase: a unicorn stopped at
   // a lure, or frozen mid-telegraph, keeps moving enough to read as alive.
   ctx.save();
@@ -566,13 +570,15 @@ function drawUnicorn(u: Unicorn, time: number, mourn: boolean) {
   pivot(
     101.5,
     182.5,
-    mourn
+    mood < 0
       ? 0.4
-      : u.nervous
-        ? Math.sin(time * 9) * 0.1
-        : Math.sin(time * 2) * 0.04,
+      : mood > 0
+        ? Math.sin(beat) * 0.12 - 0.06 // head tosses up on the beat
+        : u.nervous
+          ? Math.sin(time * 9) * 0.1
+          : Math.sin(time * 2) * 0.04,
   );
-  if (mourn) {
+  if (mood < 0) {
     ctx.translate(Math.sin(time * 2.5) * 0.7, 0);
   }
   ctx.fill(EAR_BACK); // the far ear, behind the mane
@@ -586,8 +592,15 @@ function drawUnicorn(u: Unicorn, time: number, mourn: boolean) {
   ctx.fillStyle = "#f0d5a7";
   ctx.fill(MUZZLE);
   ctx.fillStyle = "#000";
-  if (mourn) {
+  if (mood < 0) {
     ctx.fillRect(104.1, 179.9, 1, 0.22); // eye shut to a slit
+  } else if (mood > 0) {
+    // happy: the eye arches shut, the one shape that reads as a smile at this size
+    ctx.strokeStyle = "#000";
+    ctx.lineWidth = 0.22;
+    ctx.beginPath();
+    ctx.arc(104.6, 180.15, 0.55, 3.14, 6.28);
+    ctx.stroke();
   } else {
     dot(104.6, 179.89, u.nervous ? 0.45 : 0.33); // eye, wider when nervous
   }
@@ -603,7 +616,7 @@ function drawUnicorn(u: Unicorn, time: number, mourn: boolean) {
     ctx.fill();
   }
   ctx.restore();
-  drawLegs(NEAR_LEGS, "#fff", u.legPhase);
+  drawLegs(NEAR_LEGS, "#fff", mood > 0 ? beat : u.legPhase);
   ctx.restore();
 }
 
@@ -633,7 +646,7 @@ function drawThoughtBubble(u: Unicorn, time: number) {
   drawHead(u.target as Flower, 5, bx, by, 55);
 }
 
-export function drawUnicorns(time: number, mourn = false) {
+export function drawUnicorns(time: number, mood = 0) {
   // unicorns are gameplay, not UI: clip to the lawn so one walking in or out
   // slides under the header/footer stripes instead of drawing over them
   ctx.save();
@@ -659,7 +672,7 @@ export function drawUnicorns(time: number, mourn = false) {
       ctx.fillText(u.nervous ? "!!" : "!", mx, my + 4);
       continue;
     }
-    drawUnicorn(u, time, mourn);
+    drawUnicorn(u, time, mood);
     if (u.state === UnicornState.Notice) {
       drawThoughtBubble(u, time);
     }

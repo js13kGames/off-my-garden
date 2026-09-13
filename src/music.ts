@@ -77,6 +77,11 @@ const TRACKS: [
   ],
 ];
 
+// Seconds per beat of the win fanfare — its kick lands every other step. The
+// end-card dancing is tempo-locked to this rather than phase-locked to the
+// sequencer, so the characters keep dancing when the music is muted.
+export const WIN_BEAT = TRACKS[1][2] * 2;
+
 let track = TRACKS[0];
 
 export function setTrack(t: Track) {

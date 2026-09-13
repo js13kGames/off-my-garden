@@ -244,6 +244,7 @@ start(
   ({ dt }) => {
     updateMusic();
     if (state === State.Won) {
+      time += dt; // frozen sim, but the cheering faces still need a clock
       updateHud(dt); // keeps the arc's draw-in animation playing
       return;
     }
@@ -301,6 +302,8 @@ start(
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+    // -1 mourning, 1 cheering: the end states the characters' faces react to
+    const mood = state === State.Lost ? -1 : state === State.Won ? 1 : 0;
     applyViewTransform();
     ctx.save();
     ctx.beginPath();
@@ -313,9 +316,9 @@ start(
       drawGarden(time);
     }
     drawPlaceables(time);
-    drawUnicorns(time, state === State.Lost);
+    drawUnicorns(time, mood);
     drawNoise();
-    drawLep(time, state === State.Lost);
+    drawLep(time, mood);
     drawCanopy(); // trees overhang everything on the ground
     drawRain(); // no-op under a clear sky
     // HUD and toolbar strips. Painted here rather than under the playfield: the
