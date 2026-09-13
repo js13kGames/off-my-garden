@@ -19,6 +19,12 @@ export function resize() {
   oy = (canvas.height - VIEW_H * scale) / 2;
 }
 
+// Exposed so static art can be baked into an offscreen canvas at device
+// resolution — matching the main canvas pixel-for-pixel, no resampling blur.
+export function viewTransform() {
+  return [scale, ox, oy] as const;
+}
+
 // Call at the start of each frame; everything drawn after is in logical units,
 // centered and letterboxed on the physical canvas.
 export function applyViewTransform() {

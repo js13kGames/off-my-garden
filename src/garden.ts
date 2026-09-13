@@ -1,4 +1,4 @@
-import { ctx, VIEW_H, VIEW_W } from "./canvas";
+import { ctx, VIEW_H, VIEW_W, viewTransform } from "./canvas";
 import { Sfx, sfx } from "./music";
 
 // Playfield strips: HUD above, toolbar below — later tickets fill them in.
@@ -61,9 +61,14 @@ const CANOPY_BULGE = 1.45;
 // don't bulge in lockstep. All circles wind the same way and go into one path,
 // so a single nonzero fill unions them — no seams between neighbours, and the
 // only boundary left is the round-edged silhouette their outsides trace.
-function canopyPass(scale: number, phase: number, fill: string) {
-  ctx.fillStyle = fill;
-  ctx.beginPath();
+function canopyPass(
+  target: CanvasRenderingContext2D,
+  scale: number,
+  phase: number,
+  fill: string,
+) {
+  target.fillStyle = fill;
+  target.beginPath();
   const height = FIELD_BOTTOM - FIELD_TOP;
   const perimeter = 2 * (VIEW_W + height);
   for (let step = 0; step <= CANOPY_STEPS; step++) {
@@ -119,12 +124,12 @@ function canopyPass(scale: number, phase: number, fill: string) {
     // the previous one with a chord and fill the sliver behind it. The spur
     // from the centre to the arc's start is retraced on the implicit close, so
     // it encloses nothing and the fill ignores it.
-    ctx.moveTo(cx, cy);
+    target.moveTo(cx, cy);
     // rotate a quarter turn on the side edges so the long axis follows the
     // inward normal there too
-    ctx.ellipse(cx, cy, radius, bulge, nx ? Math.PI / 2 : 0, 0, 7);
+    target.ellipse(cx, cy, radius, bulge, nx ? Math.PI / 2 : 0, 0, 7);
   }
-  ctx.fill();
+  target.fill();
 }
 
 // The corner trees, drawn last of all — over the grass, pebbles, flowers,
@@ -138,12 +143,39 @@ function canopyPass(scale: number, phase: number, fill: string) {
 // edge, so the corners have volume instead of reading as a flat vignette.
 // Crowns that spill
 // past the field edge are hidden by the HUD/toolbar strips and the viewport clip.
-// ponytail: static art redrawn every frame — bake it into an offscreen canvas
-// once if these fills ever show up in a profile.
+//
+// The three passes are pure static art, so they're baked into an offscreen
+// canvas once — at the main canvas' device resolution, via the same view
+// transform — and blitted with a single drawImage per frame afterwards. A
+// resize re-bakes on the next frame, so nothing else needs to know.
+let bake: HTMLCanvasElement | undefined;
+let bakeKey = "";
+
+function bakeCanopy() {
+  const [scale, ox, oy] = viewTransform();
+  const key = `${ctx.canvas.width}x${ctx.canvas.height}`;
+  if (bake && bakeKey === key) {
+    return;
+  }
+  bakeKey = key;
+  bake = document.createElement("canvas");
+  bake.width = ctx.canvas.width;
+  bake.height = ctx.canvas.height;
+  const bctx = bake.getContext("2d")!;
+  bctx.setTransform(scale, 0, 0, scale, ox, oy);
+  canopyPass(bctx, 1, 0, "rgba(0,0,0,0.38)");
+  canopyPass(bctx, 0.7, 1.7, "#135e26");
+  canopyPass(bctx, 0.4, 3.4, "#176b24");
+}
+
 export function drawCanopy() {
-  canopyPass(1, 0, "rgba(0,0,0,0.38)");
-  canopyPass(0.7, 1.7, "#135e26");
-  canopyPass(0.4, 3.4, "#176b24");
+  bakeCanopy();
+  // blit 1:1 in device pixels — the bake already carries the view transform,
+  // so applying it again here would double-scale the image
+  ctx.save();
+  ctx.setTransform(1, 0, 0, 1, 0, 0);
+  ctx.drawImage(bake!, 0, 0);
+  ctx.restore();
 }
 
 export function drawLawn() {
