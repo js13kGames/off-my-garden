@@ -156,13 +156,26 @@ export function startMusic() {
   if (!ac) {
     ac = new AudioContext();
     master = ac.createGain();
-    master.gain.value = on ? VOLUME : 0;
     master.connect(ac.destination);
     nextTime = ac.currentTime;
-  } else if (ac.state === "suspended") {
-    ac.resume();
   }
+  // Mobile hands back a suspended context whenever the gesture isn't credited
+  // at construction time, and iOS doesn't reliably report that in `.state` —
+  // so resume on every tap (a no-op once running) and re-assert the gain,
+  // which a graph built before the unlock can come back up without.
+  ac.resume();
+  master.gain.value = on ? VOLUME : 0;
 }
+
+// A hidden tab throttles rAF to about 1 Hz, so the sequencer would wake once a
+// second and schedule only its 0.25 s lookahead — music in stuttering bursts.
+// Parking the whole context instead freezes currentTime with it, so the
+// pattern picks up exactly where it left off.
+addEventListener("visibilitychange", () => {
+  if (ac) {
+    document.hidden ? ac.suspend() : ac.resume();
+  }
+});
 
 export function stopMusic() {
   playing = false;
@@ -229,7 +242,9 @@ export function sfx(kind: Sfx) {
 }
 
 export function updateMusic() {
-  if (!ac || !playing) {
+  // A suspended context freezes currentTime, so scheduling into one just piles
+  // up notes that all fire at once the moment it unlocks.
+  if (!ac || !playing || ac.state !== "running") {
     return;
   }
   const [roots, melody, step, type, gain, scale, swing, drums] = track;
