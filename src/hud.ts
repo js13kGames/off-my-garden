@@ -4,15 +4,18 @@ import { musicOn, Sfx, sfx, toggleMusic } from "./music";
 
 // Coins earned by selling flowers; spent on tools the moment they're used.
 // Per-use price, paid straight from the coin bank; balance against COIN_VALUE in hud.ts.
-// Priced against a wave's realistic take (~10-14 harvests at 5-15 coins each,
-// so ~90-120 coins): roughly three or four tool uses a wave, not a dozen.
+// A run's whole purse is a closed sum: coins and meter points share the same
+// multiplier, so a winning run banks COIN_VALUE * POINTS_PER_RAINBOW plus the
+// opening bank — 650 coins, no matter how well it's played. These prices spend
+// it as ~6 uses of every tool across the run, ~3-4 a wave: often enough that
+// the toolbar is a live option, rarely enough that walking him there matters.
 // Cheapest is the noisemaker — it already pays a second cost in the walk over
 // there; the attractor is dearest because one placement reshapes traffic for
 // the rest of the wave.
 // The water bottle is the outlier: it buys growth rather than safety, so it's
-// the cheapest of the four — still a couple of uses a wave, but a watering is
-// worth half again a flower's rate now, so it's no longer near-free.
-export const PRICES = [30, 40, 50, 20];
+// the cheapest of the four — three lone harvests, kept above a token price so
+// it stays a purchase rather than a tap.
+export const PRICES = [20, 30, 40, 15];
 let coins = PRICES[0] + PRICES[1];
 const COIN_VALUE = 5;
 

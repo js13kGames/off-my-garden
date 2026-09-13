@@ -36,7 +36,7 @@ them away, harvest your blooms, and paint a rainbow before the garden is mulch.
 │              🧙              │
 │              [C]        🦄❗ │
 ├──────────────────────────────┤
-│ 🔊30  ☘️40  💎50  💧20       │  ← tools, priced — tap to buy & fire
+│ 🔊20  ☘️30  💎40  💧15       │  ← tools, priced — tap to buy & fire
 └──────────────────────────────┘
 ```
 
@@ -51,10 +51,10 @@ them away, harvest your blooms, and paint a rainbow before the garden is mulch.
   is the only state that can be harvested or noticed by a unicorn.
 - **Trampled** flowers flatten and stay down for the season. **Harvested** ones
   are banked: they leave the ruin pool instead of padding it.
-- **Ruin line**: the season is lost when stomps reach ~70% of what was left to
-  defend (with a floor, so an almost-empty garden can't die to one stomp).
-  Harvesting shrinks the pool but never drops the line below the stomps already
-  taken - only a unicorn can end a season.
+- **Ruin line**: the season is lost when stomps reach ~70% of the whole bed
+  (15 of 21), fixed for the wave. Harvesting never moves it - pick enough and
+  fewer flowers are left standing than the line still needs, so the wave
+  becomes unloseable.
 
 ### Unicorns (`src/unicorn.ts`)
 
@@ -80,12 +80,12 @@ Every tool fires **where the leprechaun stands**, so walking him there is the
 cost. Prices are paid straight from the coin bank; unaffordable, busy, gated, or
 no-op tools grey out.
 
-- 🔊 **Noise** (30) — expanding ring that scares unicorns as the drawn circle
+- 🔊 **Noise** (20) — expanding ring that scares unicorns as the drawn circle
   reaches them (`src/noise.ts`).
-- ☘️ **Repel** (40) — 46 px field unicorns steer around; expires after 12 s.
-- 💎 **Attract** (50) — 100 px lure that pulls unicorns off the beds; expires
-  after 6 s, half the repellent's run.
-- 💧 **Water** (20) — same ring, boosting growth (×1.5 for the wave) of the
+- ☘️ **Repel** (30) — 46 px field unicorns steer around; expires after 12 s.
+- 💎 **Attract** (40) — 100 px lure that pulls unicorns off the beds; expires
+  after 10 s, just short of the repellent's run.
+- 💧 **Water** (15) — same ring, boosting growth (×1.5 for the wave) of the
   flowers it sweeps.
   Greys out when there are flowers in reach and every one of them is already
   watered or mature — on bare ground it stays live.

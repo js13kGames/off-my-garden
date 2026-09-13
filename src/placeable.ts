@@ -16,11 +16,12 @@ export const REPEL_RADIUS = 46;
 // The drawn circle is exactly this radius — no invisible extra reach.
 const ATTRACT_RADIUS = 100;
 // Placeables expire so the garden doesn't stay fenced off with permanent
-// repellents/attractors bought over a long run. The lure goes first: it drags
-// traffic where the player wants it, which is worth more than a fence, so it
-// has to be re-bought twice as often.
+// repellents/attractors bought over a long run. The lure used to go at half
+// the fence's life, but a pull that dies while the herd is still walking to it
+// never pays for being the dearest tool — it now runs nearly as long, and goes
+// first only by a couple of seconds.
 const REPEL_LIFE = 12;
-const ATTRACT_LIFE = 6;
+const ATTRACT_LIFE = 10;
 // Alpha ramps down over the last seconds so the player sees it about to go.
 // Nearly half the lifetime either way: two seconds of fade read as a sudden
 // pop-out, and the point is to give time to react before the lawn is open again.

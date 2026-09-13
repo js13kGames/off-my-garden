@@ -160,20 +160,20 @@ check(
   rainbowDone(),
 );
 
-// --- loss rule: most of what was left to defend, with a floor ---
-// 21 flowers total; the ruin line is max(5, ceil((21 - picked) * 0.7))
+// --- loss rule: a flat share of the whole bed, fixed for the wave ---
+// 21 flowers total; the ruin line is ceil(21 * 0.7) = 15, whatever the player picks
 resetGarden();
 const fs = flowers();
 check("a fresh garden is not lost", !gardenStumped());
 for (let i = 0; i < 14; i++) {
   trample(fs[i]);
 }
-check("14 stomps stay under the full-pool ruin line", !gardenStumped());
+check("14 stomps stay under the ruin line", !gardenStumped());
 trample(fs[14]);
-check("the 15th stump loses a full pool", gardenStumped());
+check("the 15th stump loses the wave", gardenStumped());
 
-// banked blooms leave the pool instead of shielding it: 10 picked drops the
-// line from 15 to ceil(11 * 0.7) = 8
+// harvesting never moves the line: 10 banked blooms leave it at 15, so the
+// same 14 stomps that were safe before are still safe
 resetGarden();
 for (const f of fs.slice(0, 10)) {
   f.growth = 1; // mature — the walk-over harvest only takes ripe flowers
@@ -181,18 +181,12 @@ for (const f of fs.slice(0, 10)) {
 for (let i = 0; i < 10; i++) {
   harvestAtPosition(fs[i].x, fs[i].y);
 }
-for (let i = 10; i < 17; i++) {
+for (let i = 10; i < 21; i++) {
   trample(fs[i]);
 }
-check("7 stomps stay under the shrunken pool's line", !gardenStumped());
-trample(fs[17]);
-check(
-  "the 8th stump loses once a third of the pool is banked",
-  gardenStumped(),
-);
+check("a harvested garden can't be stumped past what's left", !gardenStumped());
 
-// harvesting can never be what loses the wave: 14 stomps sit right under the
-// full-pool line of 15, and picking a bloom would otherwise drop that line to 14
+// harvesting can never be what loses the wave, even at the brink
 resetGarden();
 for (let i = 0; i < 14; i++) {
   trample(fs[i]);
@@ -214,22 +208,6 @@ for (const f of fs.slice(12)) {
   harvestAtPosition(f.x, f.y);
 }
 check("a harvested-out garden reads as safe", ruinProgress() === 0);
-
-// the floor keeps a near-emptied garden from ending on a single stomp:
-// 16 picked leaves a pool of 5, where ceil(5 * 0.7) = 4 but the line holds at 5
-resetGarden();
-for (const f of fs.slice(0, 16)) {
-  f.growth = 1;
-}
-for (let i = 0; i < 16; i++) {
-  harvestAtPosition(fs[i].x, fs[i].y);
-}
-for (let i = 16; i < 20; i++) {
-  trample(fs[i]);
-}
-check("4 stomps stay safe under the floor", !gardenStumped());
-trample(fs[20]);
-check("the 5th stump hits the floor and loses", gardenStumped());
 
 // no Growing flower left means nothing more to lose, sprouts included
 resetGarden();
