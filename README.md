@@ -1,131 +1,148 @@
-# Unicorns Off My Lawn!
+# Unicorns Off My Lawn
 
 A js13kGames 2026 entry (theme: **"Unicorns and Rainbows"**). You are a leprechaun
 tending a rainbow garden while careless, easily-distracted unicorns wander in and
-trample your flowers. They aren't evil — they're just big, dumb, and hungry. Herd
-them away, sell your blooms, and keep the garden alive.
-
-Inspired by Plants vs. Zombies' readability, but the core is **garden management +
-herding**, not shooting: grow valuable things while continuously shaping unicorn
-traffic around them.
+trample your flowers. They aren't evil, they're just big, dumb, and clumsy. Herd
+them away, harvest your blooms, and paint a rainbow before the garden is mulch.
 
 ## Core loop
 
-1. Flowers grow in beds over time; mature flowers pulse with a halo.
-2. Unicorns enter from the screen edges (announced by an edge warning), wander the
-   open paths between beds, and occasionally **notice** a flower — brief pause,
-   thought bubble — then walk over and trample it.
-3. The player taps the ground to send the leprechaun places, taps mature flowers to
-   sell them for coins, and uses three tools to redirect unicorns.
-4. Waves escalate continuously: bigger rosters, more nervous unicorns, less
-   reaction time. When a wave's unicorns are all gone, flowers wither and
-   reset and the next wave starts right away — no menu, no pause.
+1. Flowers grow in three loose beds through sprout → bud → bloom.
+2. Unicorns enter from the screen edges, wander, then **notice** a flower and
+   walk over to stomp it.
+3. The player taps the ground to send the leprechaun places, taps (or walks over)
+   mature flowers to harvest them, and spends coins on four tools that fire
+   wherever the leprechaun stands.
+4. Harvests fill the rainbow meter. Fill it and the run is won.
 
 ## Screen & layout
 
 - **Mobile-first, desktop-friendly.** Portrait phone is the canonical viewport.
-- **Fixed logical viewport** (360×640) scaled to fit any physical screen,
-  letterboxed on desktop. Game geometry is identical everywhere.
-- **One garden = one screen. No camera, no scrolling, no minimap.**
-- Layout: thin top HUD (coins) → garden playfield (~85% of screen) → thin
-  bottom toolbar. No permanent explanation panels.
-- **Five asymmetric flower beds** (A–E) with broad open walkways between them —
-  the walkways are where the game happens; unicorns should spend most of their
-  time walking harmlessly between beds.
-- 6–8 unicorn spawn points around the screen edges.
+- **Fixed logical viewport** (360×640) scaled to fit any screen, letterboxed.
+  Game geometry is identical everywhere (`src/canvas.ts`).
+- **One garden = one screen.** No camera, no scrolling, no minimap.
+- Thin top HUD (coins, rainbow meter, music toggle, reset) → playfield →
+  toolbar strip of four buttons.
+- Corner woodland is procedural: a depth function around the field perimeter,
+  baked once into an offscreen canvas and blitted each frame.
 
 ```
 ┌──────────────────────────────┐
-│ 💰 125                       │  ← compact HUD
+│ 💰 125      ▓▓▓░░ 🌈   🔊 ↺ │  ← coins, rainbow meter, music, reset
 ├──────────────────────────────┤
-│   [A]              [B]       │
-│                              │
-│           [C]     🦄💭       │
-│      ☘️        🧙            │
-│   [D]              [E]  🦄❗ │
+│              [A]             │
+│                    🦄💭      │
+│   [B]                        │
+│              🧙              │
+│              [C]        🦄❗ │
 ├──────────────────────────────┤
-│ 🔊 10💰  ☘️ 15💰  🌈 20💰    │  ← tools, priced — tap to buy & use
+│ 🔊30  ☘️40  💎50  💧10       │  ← tools, priced — tap to buy & fire
 └──────────────────────────────┘
 ```
 
 ## Entities & rules
 
-### Flowers
-- Beds are pre-seeded; every flower resets to stage 0 at each wave start and
-  grows through stages over time within the wave.
-- **Trampled** flower: flattened; stays down for the rest of the wave.
-- **Mature** flower: subtle pulsing halo (no permanent coin icons). Tap to sell:
-  `+coins` popup; the flower stays sold for the rest of the wave.
-- All flowers come back at stage 0 when the next wave begins.
+### Flowers (`src/garden.ts`)
 
-### Unicorns
-- State machine: `enter → wander → NOTICE → walk-to-flower → trample → wander/leave`.
-- **NOTICE** is the telegraph: the unicorn stops ~0.5–0.8 s with a thought bubble
-  before turning toward a flower. That pause is the player's reaction window.
-- **Moods**: calm vs. nervous. Nervous unicorns move faster and notice in ~250 ms
-  instead of ~700 ms — mood shortens the player's reaction time, not just speed.
-  Nervous unicorns show agitated eyes/motion.
-- Incoming unicorns are announced with a small edge marker (`!`) before entering.
-- Early game: only 2–4 unicorns simultaneously.
+- Three beds, scattered by best-candidate sampling so clumps look natural.
+  Each flower has a random hue (one of seven rainbow bands) and one of several
+  procedural petal layouts - beds always come up mixed.
+- Growth is per-flower with variance; **bloom** (growth 1) pulses with a halo and
+  is the only state that can be harvested or noticed by a unicorn.
+- **Trampled** flowers flatten and stay down for the season. **Harvested** ones
+  are banked: they leave the ruin pool instead of padding it.
+- **Ruin line**: the season is lost when stomps reach ~70% of what was left to
+  defend (with a floor, so an almost-empty garden can't die to one stomp).
+  Harvesting shrinks the pool but never drops the line below the stomps already
+  taken - only a unicorn can end a season.
 
-### Leprechaun
-- Tap the ground → he runs there (movement takes time; he is a character, not a
-  cursor). Positioning is a real decision.
+### Unicorns (`src/unicorn.ts`)
 
-### Tools (bottom toolbar)
-Each button shows its price. Tap it (or press `1`/`2`/`3`) to buy and fire it
-immediately, spending straight from the coin bank — no stock, no shop.
-Unaffordable tools are grayed out.
-- 🔊 **Noisemaker** — select, tap a location: the leprechaun runs there and, when
-  close enough, scares nearby unicorns away. Requires proximity.
-- ☘️ **Repellent** — placed on the ground; unicorns avoid its visible radius.
-- 🌈 **Attractor** — placed on the ground; lures unicorns within its radius.
+- States: `Warn → Wander → Notice → Target → (trample) → Wander/Leave`, plus
+  `Scared` and `Lured`.
+- **Notice** is the telegraph: ~0.7 s pause with a thought bubble before turning
+  toward a flower.
+- **Moods**: calm (speed 40) vs. nervous (speed 62, notice cut to 0.25 s). Wave 1
+  is all calm; the nervous share climbs with the wave.
+- A committed unicorn goes on a **spree** through the bed it picked.
+- The leprechaun's own body pushes unicorns away within 32 px - free, always-on
+  counterplay, weaker than a repellent.
 
-### Visual language (small-screen readability)
-- Mature flower = glow + sparkle; nervous unicorn = agitated eyes; flower noticed =
-  pause + thought bubble; repellent/attractor = visible radius; incoming unicorn =
-  edge warning.
+### Leprechaun (`src/leprechaun.ts`)
+
+- Tap the ground → he runs there. Crossing the garden takes ~5 s; he's a
+  character, not a cursor, and positioning is the real decision. Sprite paths are
+  lifted verbatim from `layout/lep.svg` via `Path2D`.
+
+### Tools (`src/toolbar.ts`)
+
+Every tool fires **where the leprechaun stands**, so walking him there is the
+cost. Prices are paid straight from the coin bank; unaffordable, busy, gated, or
+no-op tools grey out.
+
+- 🔊 **Noise** (30) — expanding ring that scares unicorns as the drawn circle
+  reaches them (`src/noise.ts`).
+- ☘️ **Repel** (40) — 46 px field unicorns steer around; expires after 12 s.
+- 💎 **Attract** (50) — 100 px lure that pulls unicorns off the beds.
+- 💧 **Water** (10) — same ring, boosting growth of the flowers it sweeps.
+  Greys out when every flower in reach is already watered, mature, or gone.
+
+### Weather (`src/rain.ts`)
+
+Clouds gather once the season is most of the way to ruin, so a loss is announced
+rather than arriving out of a blue sky; the full downpour belongs to the game
+over itself.
+
+### Audio (`src/music.ts`)
+
+Hand-rolled WebAudio step sequencer — three tracks (play/win/lose) as compact
+data tables, plus one-shot SFX sharing the same note primitive and master gain,
+so one mute covers both. Unlocks on first tap and parks the context when the tab
+is hidden.
 
 ## Game structure
 
-A wave ends when every unicorn it spawned has left the field; then flowers
-wither, reset, and the next wave begins right away. There is **no win condition** —
-waves escalate forever. The lose condition is the garden dying: when the last
-flower is gone the run ends immediately, scored by waves survived and coins
-collected.
+- **Waves/seasons** (`src/wave.ts`) escalate by formula, not a table: roster
+  `6 + 3(w-1)`, concurrent cap up to 8, spawn interval down to 1.2 s.
+- Wave ends when the roster is spent and the stragglers are walking off; a 4 s
+  **harvest grace** lets the player cash in survivors before they wither.
+- **Win**: fill the rainbow meter — 30 points, where a lone harvest is 1 and
+  chaining same-coloured harvests pays up to 3. The arc draws in; taps are
+  ignored until the reveal finishes.
+- **Lose**: stomps cross the ruin line. The card holds for 2 s so the tap that
+  lost the run can't bounce off it.
 
-It exists to answer one question:
+## Tutorial (`src/tutorial.ts`)
 
-> Is manipulating silly unicorn traffic while desperately protecting a garden fun?
-
-Candidate structures for the full game (post-POC):
-- **Rainbow power** — a meter that fills as flowers are sold; at max, a big rainbow
-  celebration shines across the screen, the meter resets, and completed rainbows
-  are counted indefinitely with a recorded best.
-- **Timed session** — fixed length, score at the end.
+Ten scripted steps on a practice garden with no wins, losses, or coin carryover:
+move, growth, harvest, coins, rainbow, unicorn threat, the noisemaker, the other
+tools, the losing condition (demonstrated with the warning sky), and go. Action
+steps wait for the real action; hint steps advance on a tap. Completion is
+remembered, and the title card always offers a replay.
 
 ## Tech
 
-- **TypeScript + Vite + Biome**, pnpm, `vite-plugin-singlefile`, advzip — the same
-  pipeline as the sibling TurboToot project. Zip size measured from the start.
-- **Canvas 2D**, no game engine: custom fixed-step loop, custom steering, procedural
-  graphics (circles, curves, polygons). Background music is a hand-rolled
-  WebAudio step sequencer (`src/music.ts`), no tracker player or song blob.
-- 13 KB zipped budget.
+- **TypeScript + Vite + Biome**, pnpm, `vite-plugin-singlefile`, terser, advzip.
+  13 kB zipped budget — currently ~12.9 kB.
+- **Canvas 2D**, no engine: fixed-step loop, custom steering, procedural art
+  (circles, curves, `Path2D` traced from the Inkscape files in `layout/`).
+- `const enum` for entity states — it erases entirely and costs no bundle bytes.
 
-### Reuse from TurboToot (`../TurboToot`)
+## Commands
 
-The first three TurboToot commits are game-agnostic and should be reused directly
-(cherry-pick or copy):
+```sh
+pnpm dev              # vite dev server
+pnpm lint             # biome check
+pnpm typecheck        # tsc
+pnpm build            # tsc + vite build + advzip → dist.zip (prints the size)
+pnpm check:tutorial   # tutorial regression check
+pnpm check:gameplay   # gameplay regression check
+```
 
-- `4bbaf1c` **001** — TypeScript + Vite + advzip pipeline, Biome, full-window canvas.
-- `54cb099` **002** — canvas setup and fixed-step main loop.
-- `eb56c5d` **003** — basic game states and start interaction.
-
-Everything from `fa09eca` (004, terrain generation) onward is specific to the
-runner game and does not apply here.
+Both checks run the real TypeScript modules headlessly through Vite's SSR
+loader (`scripts/*.ts`) — asserts, no test framework.
 
 ## Tickets
 
-POC implementation is broken into numbered tickets in [`tickets/`](tickets/),
-designed to be done in order, each leaving the game runnable.
+Remaining ideas live in [`tickets/`](tickets/); the delivered ones are in
+[`tickets/archived/`](tickets/archived/).
