@@ -83,7 +83,8 @@ no-op tools grey out.
 - 🔊 **Noise** (30) — expanding ring that scares unicorns as the drawn circle
   reaches them (`src/noise.ts`).
 - ☘️ **Repel** (40) — 46 px field unicorns steer around; expires after 12 s.
-- 💎 **Attract** (50) — 100 px lure that pulls unicorns off the beds.
+- 💎 **Attract** (50) — 100 px lure that pulls unicorns off the beds; expires
+  after 6 s, half the repellent's run.
 - 💧 **Water** (20) — same ring, boosting growth (×1.5 for the wave) of the
   flowers it sweeps.
   Greys out when there are flowers in reach and every one of them is already

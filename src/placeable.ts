@@ -16,20 +16,24 @@ export const REPEL_RADIUS = 46;
 // The drawn circle is exactly this radius — no invisible extra reach.
 const ATTRACT_RADIUS = 100;
 // Placeables expire so the garden doesn't stay fenced off with permanent
-// repellents/attractors bought over a long run.
-const LIFE = 12;
+// repellents/attractors bought over a long run. The lure goes first: it drags
+// traffic where the player wants it, which is worth more than a fence, so it
+// has to be re-bought twice as often.
+const REPEL_LIFE = 12;
+const ATTRACT_LIFE = 6;
 // Alpha ramps down over the last seconds so the player sees it about to go.
-// Nearly half the lifetime: two seconds of fade read as a sudden pop-out, and
-// the point is to give time to react before the lawn is open again.
-const FADE = 5;
+// Nearly half the lifetime either way: two seconds of fade read as a sudden
+// pop-out, and the point is to give time to react before the lawn is open again.
+const REPEL_FADE = 5;
+const ATTRACT_FADE = 2.5;
 
 export function placeRepellent(x: number, y: number) {
-  repellents.push({ x, y, life: LIFE });
+  repellents.push({ x, y, life: REPEL_LIFE });
   sfx(Sfx.Place);
 }
 
 export function placeAttractor(x: number, y: number) {
-  attractors.push({ x, y, life: LIFE });
+  attractors.push({ x, y, life: ATTRACT_LIFE });
   sfx(Sfx.Place);
 }
 
@@ -75,13 +79,14 @@ function drawField(
   items: Placeable[],
   time: number,
   radius: number,
+  fadeTime: number,
   fill: string,
   edge: string,
   glyph: string,
   glyphColor: string,
 ) {
   for (const p of items) {
-    const fade = Math.min(1, p.life / FADE);
+    const fade = Math.min(1, p.life / fadeTime);
     // breathing edge so the area reads as active, not as scenery
     const pulse = 0.5 + 0.5 * Math.sin(time * 3 + p.x);
     ctx.fillStyle = `rgba(${fill},${0.1 * fade})`;
@@ -110,6 +115,7 @@ export function drawPlaceables(time: number) {
     attractors,
     time,
     ATTRACT_RADIUS,
+    ATTRACT_FADE,
     "150,110,230",
     "120,80,210",
     "\u{1F48E}",
@@ -119,6 +125,7 @@ export function drawPlaceables(time: number) {
     repellents,
     time,
     REPEL_RADIUS,
+    REPEL_FADE,
     "60,180,90",
     "40,150,70",
     "\u2618\uFE0F",

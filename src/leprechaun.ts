@@ -109,7 +109,10 @@ export function drawLep(time: number, mood = 0) {
     ctx.arc(lep.x, lep.y, LEP_RADIUS, 0, 7);
     ctx.stroke();
   }
-  if (lep.moving) {
+  // the sim freezes on a win or a loss with him mid-walk, so the walk cycle
+  // has to end with it — otherwise he steps in place, which reads as a jig
+  const walking = lep.moving && !mood;
+  if (walking) {
     // destination marker
     ctx.strokeStyle = "rgba(255,255,255,.6)";
     ctx.lineWidth = 1.5;
@@ -122,9 +125,9 @@ export function drawLep(time: number, mood = 0) {
   const beat = time * (Math.PI / WIN_BEAT);
   const dancing = mood > 0;
   const bob =
-    (lep.moving ? Math.sin(time * 14) * 2 : 0) -
+    (walking ? Math.sin(time * 14) * 2 : 0) -
     (dancing ? Math.abs(Math.sin(beat)) * 3 : 0);
-  const flip = lep.moving && lep.tx < lep.x ? -1 : 1;
+  const flip = walking && lep.tx < lep.x ? -1 : 1;
   ctx.save();
   ctx.translate(lep.x, lep.y + bob);
   if (dancing) {
@@ -139,7 +142,7 @@ export function drawLep(time: number, mood = 0) {
   ctx.fill();
   // shoes swing opposite each other, each nudged in its own local space so
   // they don't drag the coat along with them
-  const step = lep.moving
+  const step = walking
     ? Math.sin(time * 14) * 1.2
     : dancing
       ? Math.sin(beat) * 1.4

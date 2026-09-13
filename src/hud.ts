@@ -23,11 +23,17 @@ const pops: Popup[] = [];
 // Rainbow objective: every harvested flower adds points to the meter; a full
 // meter draws the rainbow in and wins the run. Coins still count as score, but
 // the meter itself never resets once won.
-// Points, not flowers: a plain harvest is worth 1, so a rainbow is 60 lone
+// Points, not flowers: a plain harvest is worth 1, so a rainbow is 120 lone
 // blooms — slow enough that the run breathes — but chaining same-coloured
 // harvests pays up to 3 a pop, which is how a good player actually gets there.
+// The threshold is also the difficulty dial. One wave can only yield 21
+// harvests, so a target inside a single wave's reach let the run end before
+// wave 2, which is where nervous unicorns first spawn — the player won
+// without meeting half the game. Four-ish waves' worth puts the win out past
+// the point where the roster, the spawn rate and the nervous share have all
+// climbed. Lower this to soften the run; raise it to lengthen and harden it.
 // Exported so the regression check reads the live number instead of a copy.
-export const POINTS_PER_RAINBOW = 60;
+export const POINTS_PER_RAINBOW = 120;
 const COMBO_CAP = 3;
 // Whole points, not a 0..1 fraction: summing gain/30 fractions drifts below 1
 // (a run of lone blooms used to land on 0.9999999999999999 and never win), so the
