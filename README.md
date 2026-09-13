@@ -108,7 +108,7 @@ is hidden.
   `6 + 3(w-1)`, concurrent cap up to 8, spawn interval down to 1.2 s.
 - Wave ends when the roster is spent and the stragglers are walking off; a 4 s
   **harvest grace** lets the player cash in survivors before they wither.
-- **Win**: fill the rainbow meter — 30 points, where a lone harvest is 1 and
+- **Win**: fill the rainbow meter — 60 points, where a lone harvest is 1 and
   chaining same-coloured harvests pays up to 3. The arc draws in; taps are
   ignored until the reveal finishes.
 - **Lose**: stomps cross the ruin line. The card holds for 2 s so the tap that

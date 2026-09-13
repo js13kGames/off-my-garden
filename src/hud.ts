@@ -23,13 +23,14 @@ const pops: Popup[] = [];
 // Rainbow objective: every harvested flower adds points to the meter; a full
 // meter draws the rainbow in and wins the run. Coins still count as score, but
 // the meter itself never resets once won.
-// Points, not flowers: a plain harvest is worth 1, so a rainbow is 30 lone
+// Points, not flowers: a plain harvest is worth 1, so a rainbow is 60 lone
 // blooms — slow enough that the run breathes — but chaining same-coloured
 // harvests pays up to 3 a pop, which is how a good player actually gets there.
-const POINTS_PER_RAINBOW = 30;
+// Exported so the regression check reads the live number instead of a copy.
+export const POINTS_PER_RAINBOW = 60;
 const COMBO_CAP = 3;
 // Whole points, not a 0..1 fraction: summing gain/30 fractions drifts below 1
-// (30 lone blooms used to land on 0.9999999999999999 and never win), so the
+// (a run of lone blooms used to land on 0.9999999999999999 and never win), so the
 // threshold compares integers and the meter divides only for drawing.
 let rainbowPoints = 0;
 const ARC_TIME = 2; // seconds the draw-in animation takes
@@ -39,8 +40,8 @@ let combo = 0; // how many same-hue harvests in a row, including this one
 
 // `practice` = harvested during the tutorial: it still pays coins and pops,
 // because that is what the rewards lesson is teaching, but it must not fill
-// the meter. The tutorial garden is never reset by a wave, so its 21 flowers
-// are enough to complete a rainbow and draw the arc in behind the lessons.
+// the meter — the tutorial garden is never reset by a wave, so practice
+// harvests would otherwise creep the arc in behind the lessons.
 export function addCoins(
   f: { x: number; y: number; hue: number },
   practice = false,

@@ -65,9 +65,14 @@ const {
   ruinProgress,
   trample,
 } = await import("../src/garden.ts");
-const { PRICES, addCoins, getCoins, rainbowDone, resetHud } = await import(
-  "../src/hud.ts"
-);
+const {
+  POINTS_PER_RAINBOW: WIN,
+  PRICES,
+  addCoins,
+  getCoins,
+  rainbowDone,
+  resetHud,
+} = await import("../src/hud.ts");
 const { LEP_START, lep, sendLepTo, updateLep } = await import(
   "../src/leprechaun.ts"
 );
@@ -115,18 +120,18 @@ const resetField = () => {
   lep.blocking = false;
 };
 
-// --- win threshold: the rainbow meter fills at exactly 30 points ---
+// --- win threshold: the rainbow meter fills at exactly POINTS_PER_RAINBOW ---
 resetHud();
 const bank = PRICES[0] + PRICES[1];
 check("a fresh run has not won", !rainbowDone());
 // alternating hues keep every harvest a flat 1-point chain
-for (let i = 0; i < 29; i++) {
+for (let i = 0; i < WIN - 1; i++) {
   addCoins({ x: 0, y: 0, hue: i % 2 ? 0 : 30 });
 }
-check("29 points do not win", !rainbowDone());
-addCoins({ x: 0, y: 0, hue: 0 }); // differs from the last chained hue
-check("the 30th point wins exactly", rainbowDone());
-check("30 lone blooms paid 5 coins each", getCoins() === bank + 150);
+check("one point short does not win", !rainbowDone());
+addCoins({ x: 0, y: 0, hue: 60 }); // a third hue: never a chain, always 1 point
+check("the last point wins exactly", rainbowDone());
+check("lone blooms paid 5 coins each", getCoins() === bank + 5 * WIN);
 
 // same-hue chains pay 1/2/3 and cap there — the 4th bloom in a row adds no
 // more than the 3rd
@@ -140,14 +145,14 @@ check("a combo run alone stays under the threshold", !rainbowDone());
 
 // tutorial harvests pay coins but never fill the meter
 resetHud();
-for (let i = 0; i < 29; i++) {
+for (let i = 0; i < WIN - 1; i++) {
   addCoins({ x: 0, y: 0, hue: i % 2 ? 0 : 30 }, true);
 }
 check("practice harvests never fill the meter", !rainbowDone());
-check("practice harvests still pay coins", getCoins() === bank + 145);
+check("practice harvests still pay coins", getCoins() === bank + 5 * (WIN - 1));
 addCoins({ x: 0, y: 0, hue: 0 });
 check("one real harvest after practice stays under the line", !rainbowDone());
-for (let i = 0; i < 29; i++) {
+for (let i = 0; i < WIN - 1; i++) {
   addCoins({ x: 0, y: 0, hue: i % 2 ? 30 : 0 });
 }
 check(
