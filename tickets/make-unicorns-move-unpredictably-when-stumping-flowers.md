@@ -1,1 +1,0 @@
-Ticket 016 made unicorns destroy all plants in a bed, but they do this in a boring and predictably way, generally moving from top-left to right, then to bottom, then from right to left. We should make that movement more unpredictable and give a small pause between each flower.
