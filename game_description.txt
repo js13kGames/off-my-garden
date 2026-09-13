@@ -1,0 +1,15 @@
+You are a leprechaun with a rainbow garden and a unicorn problem. They aren't evil - they're big, dumb, and easily distracted, and they will happily flatten a bed of blooms on their way to nothing in particular.
+
+Harvest enough flowers to paint a rainbow before the herd turns your garden into mulch.
+
+Once you start the game:
+
+- Tap the ground to send the leprechaun there. He walks - he's a character, not a cursor, so where he stands is your real decision.
+- Tap a bloomed flower near him to harvest it, or just walk him over it. Only mature blooms count.
+- Harvest the same colour twice in a row for more rainbow
+- His body alone shoves unicorns aside. Free, always on, and weaker than anything you can buy.
+- Spend coins on the four tools - they all fire wherever he's standing. 🔊 scares, ☘️ repels, 💎 lures them off a bed, 💧 speeds up growth.
+- Watch for a unicorn stopping to think. That bubble means it has picked a flower and is about to go for it.
+- Waves get bigger and twitchier. When the sky starts clouding over, the garden is close to gone.
+
+Fill the rainbow and the season is yours. One screen, one thumb, a few minutes a run - and the flowers you save are the ones you didn't leave standing.
