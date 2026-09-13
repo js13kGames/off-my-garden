@@ -453,23 +453,23 @@ const SELL_RADIUS = 10;
 // selling isn't free from across the garden — he has to tend the patch.
 const SELL_RANGE = 50;
 
-// Nearest mature flower under a tap, harvested back to a bare sprout, but
-// only among flowers the lep is standing close to. Out-of-range or
-// immature-flower taps fall through to the lep, e.g. as ordinary ground movement.
-export function sellAt(
+// Nearest mature flower to (x, y) within `radius`, harvested back to a bare
+// sprout. `from` optionally narrows the search to flowers the lep is standing
+// close to — selling requires he has tended the patch, walk-over doesn't.
+function harvestNearest(
   x: number,
   y: number,
-  lepX: number,
-  lepY: number,
+  radius: number,
+  from?: { x: number; y: number },
 ): Flower | undefined {
   let best: Flower | undefined;
-  let bestDist = SELL_RADIUS;
+  let bestDist = radius;
   for (const bed of beds) {
     for (const f of bed) {
       if (f.state !== FlowerState.Growing || f.growth < 1) {
         continue;
       }
-      if (Math.hypot(f.x - lepX, f.y - lepY) > SELL_RANGE) {
+      if (from && Math.hypot(f.x - from.x, f.y - from.y) > SELL_RANGE) {
         continue;
       }
       const d = Math.hypot(f.x - x, f.y - y);
@@ -485,28 +485,16 @@ export function sellAt(
   return best;
 }
 
+// Nearest mature flower under a tap, harvested back to a bare sprout, but
+// only among flowers the lep is standing close to. Out-of-range or
+// immature-flower taps fall through to the lep, e.g. as ordinary ground movement.
+export const sellAt = (x: number, y: number, lepX: number, lepY: number) =>
+  harvestNearest(x, y, SELL_RADIUS, { x: lepX, y: lepY });
+
 // Walking over a mature flower harvests the nearest one within the same
 // targeting radius as a click.
-export function harvestAtPosition(x: number, y: number): Flower | undefined {
-  let best: Flower | undefined;
-  let bestDist = SELL_RADIUS;
-  for (const bed of beds) {
-    for (const f of bed) {
-      if (f.state !== FlowerState.Growing || f.growth < 1) {
-        continue;
-      }
-      const d = Math.hypot(f.x - x, f.y - y);
-      if (d < bestDist) {
-        bestDist = d;
-        best = f;
-      }
-    }
-  }
-  if (best) {
-    bank(best);
-  }
-  return best;
-}
+export const harvestAtPosition = (x: number, y: number) =>
+  harvestNearest(x, y, SELL_RADIUS);
 
 // Even waves play the zigzag mirrored left-to-right, so the beds aren't in the
 // same three spots every wave and the player can't camp one lane forever.
