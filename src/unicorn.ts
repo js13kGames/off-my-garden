@@ -534,7 +534,7 @@ function dot(x: number, y: number, r: number) {
   ctx.fill();
 }
 
-function drawUnicorn(u: Unicorn, time: number) {
+function drawUnicorn(u: Unicorn, time: number, mourn: boolean) {
   const flip = u.wx < u.x ? -1 : 1;
   // a jittery vibration is the readable tell at phone scale — the eye alone
   // is under a pixel across, so motion has to carry it
@@ -561,11 +561,20 @@ function drawUnicorn(u: Unicorn, time: number) {
   // head nods about the neck joint; the mane rides along, and since it sits on
   // top of the white body the sub-pixel shift can't open a seam
   ctx.save();
+  // mourning: the head hangs and swings slowly side to side — in profile a
+  // shake reads as the muzzle sliding, not as another nod
   pivot(
     101.5,
     182.5,
-    u.nervous ? Math.sin(time * 9) * 0.1 : Math.sin(time * 2) * 0.04,
+    mourn
+      ? 0.4
+      : u.nervous
+        ? Math.sin(time * 9) * 0.1
+        : Math.sin(time * 2) * 0.04,
   );
+  if (mourn) {
+    ctx.translate(Math.sin(time * 2.5) * 0.7, 0);
+  }
   ctx.fill(EAR_BACK); // the far ear, behind the mane
   ctx.fillStyle = "#00f";
   ctx.fill(MANE);
@@ -577,7 +586,11 @@ function drawUnicorn(u: Unicorn, time: number) {
   ctx.fillStyle = "#f0d5a7";
   ctx.fill(MUZZLE);
   ctx.fillStyle = "#000";
-  dot(104.6, 179.89, u.nervous ? 0.45 : 0.33); // eye, wider when nervous
+  if (mourn) {
+    ctx.fillRect(104.1, 179.9, 1, 0.22); // eye shut to a slit
+  } else {
+    dot(104.6, 179.89, u.nervous ? 0.45 : 0.33); // eye, wider when nervous
+  }
   dot(106.64, 181.7, 0.31); // nostril
   // two grooves across the horn, the drawing's shorthand for its twist
   ctx.fillStyle = "rgba(0,0,0,.39)";
@@ -620,7 +633,7 @@ function drawThoughtBubble(u: Unicorn, time: number) {
   drawHead(u.target as Flower, 5, bx, by, 55);
 }
 
-export function drawUnicorns(time: number) {
+export function drawUnicorns(time: number, mourn = false) {
   // unicorns are gameplay, not UI: clip to the lawn so one walking in or out
   // slides under the header/footer stripes instead of drawing over them
   ctx.save();
@@ -646,7 +659,7 @@ export function drawUnicorns(time: number) {
       ctx.fillText(u.nervous ? "!!" : "!", mx, my + 4);
       continue;
     }
-    drawUnicorn(u, time);
+    drawUnicorn(u, time, mourn);
     if (u.state === UnicornState.Notice) {
       drawThoughtBubble(u, time);
     }

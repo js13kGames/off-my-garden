@@ -98,7 +98,7 @@ COAT_SHADE.addColorStop(0, "rgba(0,0,0,0)");
 COAT_SHADE.addColorStop(0.89, "rgba(0,0,0,.13)");
 COAT_SHADE.addColorStop(1, "rgba(0,0,0,.34)");
 
-export function drawLep(time: number) {
+export function drawLep(time: number, mourn = false) {
   if (lep.blocking) {
     // the deflection ring: shown only while it's bending a path, so it reads
     // as feedback rather than a permanent radius like the placeables have
@@ -174,6 +174,14 @@ export function drawLep(time: number) {
   ctx.fillRect(41.6, 71.3, 1.7, 1.6);
   ctx.strokeRect(41.6, 71.3, 1.7, 1.6);
   ctx.restore();
+  // head group: face, beard, hat and eyes ride together so mourning can hang
+  // it off the neck and swing it slowly, the same tell the unicorns get
+  ctx.save();
+  if (mourn) {
+    ctx.translate(36.5, 68);
+    ctx.rotate(0.3);
+    ctx.translate(-36.5 + Math.sin(time * 2.5) * 0.9, -68);
+  }
   // face and beard
   ctx.fillStyle = "#fec799";
   ctx.fill(FACE);
@@ -208,7 +216,14 @@ export function drawLep(time: number) {
   ctx.fillStyle = "#fec799";
   ctx.fillRect(33.1, 64.7, 0.7, 1.2);
   ctx.fillStyle = "#0c0b08";
-  ctx.fillRect(37.2, 63.7, 0.7, 1.4);
-  ctx.fillRect(38.8, 63.5, 0.7, 1.4);
+  if (mourn) {
+    // eyes shut: the same pair squashed down to lids at the bottom of the socket
+    ctx.fillRect(37.1, 64.6, 0.9, 0.4);
+    ctx.fillRect(38.7, 64.4, 0.9, 0.4);
+  } else {
+    ctx.fillRect(37.2, 63.7, 0.7, 1.4);
+    ctx.fillRect(38.8, 63.5, 0.7, 1.4);
+  }
+  ctx.restore(); // head group
   ctx.restore();
 }

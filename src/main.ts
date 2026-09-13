@@ -249,6 +249,7 @@ start(
     }
     if (state === State.Lost) {
       lostFor += dt;
+      time += dt; // sim is frozen, but the mourning animation still needs a clock
       updateRain(dt); // keeps the storm ramping/falling
       updateHud(dt); // lets any in-flight coin pop finish fading
       return;
@@ -312,9 +313,9 @@ start(
       drawGarden(time);
     }
     drawPlaceables(time);
-    drawUnicorns(time);
+    drawUnicorns(time, state === State.Lost);
     drawNoise();
-    drawLep(time);
+    drawLep(time, state === State.Lost);
     drawCanopy(); // trees overhang everything on the ground
     drawRain(); // no-op under a clear sky
     // HUD and toolbar strips. Painted here rather than under the playfield: the
