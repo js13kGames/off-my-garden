@@ -538,7 +538,7 @@ function drawUnicorn(u: Unicorn, time: number, mood: number) {
   const flip = u.wx < u.x ? -1 : 1;
   // a jittery vibration is the readable tell at phone scale — the eye alone
   // is under a pixel across, so motion has to carry it
-  const tremor = u.nervous ? Math.sin(time * 37 + u.x) * 0.5 : 0;
+  const tremor = u.nervous && !mood ? Math.sin(time * 37 + u.x) * 0.5 : 0;
   // on a win everything rides the fanfare's beat instead of its own idle
   // timers: a bounce on every kick, legs prancing at the same rate
   const beat = time * (Math.PI / WIN_BEAT) + u.x; // per-uni offset, no chorus line
@@ -658,7 +658,7 @@ export function drawUnicorns(time: number, mood = 0) {
       // edge warning marker where the unicorn is about to enter — a nervous
       // one pulses faster and doubles up, so the tell reads before it even
       // sets a hoof on the lawn
-      const tremor = u.nervous ? Math.sin(time * 37 + u.x) * 0.5 : 0;
+      const tremor = u.nervous && !mood ? Math.sin(time * 37 + u.x) * 0.5 : 0;
       const mx = Math.min(Math.max(u.x + tremor, 14), VIEW_W - 14);
       const my = Math.min(Math.max(u.y, FIELD_TOP + 14), FIELD_BOTTOM - 14);
       const pulse = 0.5 + 0.5 * Math.sin(time * (u.nervous ? 22 : 10));
