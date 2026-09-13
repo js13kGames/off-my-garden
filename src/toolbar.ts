@@ -31,8 +31,9 @@ export function setToolGate(g: number) {
 const gated = (i: number) => gate !== TOOL_ALL && gate !== i;
 // The tools all fire where the lep stands, so the toolbar can tell in advance
 // when one would do nothing: water is the only tool with a possible no-op —
-// every flower in reach already boosted, mature, or gone. Charging for that
-// reads as a broken button, so it greys out instead.
+// flowers in reach, all of them already boosted or mature. Charging for that
+// reads as a broken button, so it greys out instead. Bare ground is not that
+// case: with nothing in reach there is nothing to refuse.
 const WATER = 3;
 const usable = (i: number) =>
   i !== WATER || wouldWater(lep.x, lep.y, WATER_MAX);

@@ -10,8 +10,9 @@ import { musicOn, Sfx, sfx, toggleMusic } from "./music";
 // there; the attractor is dearest because one placement reshapes traffic for
 // the rest of the wave.
 // The water bottle is the outlier: it buys growth rather than safety, so it's
-// cheap enough to use several times a wave.
-export const PRICES = [30, 40, 50, 10];
+// the cheapest of the four — still a couple of uses a wave, but a watering is
+// worth half again a flower's rate now, so it's no longer near-free.
+export const PRICES = [30, 40, 50, 20];
 let coins = PRICES[0] + PRICES[1];
 const COIN_VALUE = 5;
 

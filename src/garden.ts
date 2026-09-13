@@ -274,7 +274,7 @@ export type Bed = Flower[];
 const GROW_TIME = 20;
 const growRate = () => (0.8 + Math.random() * 0.4) / GROW_TIME;
 // What one watering multiplies a flower's rate by, for the rest of the wave
-const WATER_BOOST = 1.3;
+const WATER_BOOST = 1.5;
 // How long a trampled flower stays flattened before the slot goes bare
 const FLAT_TIME = 1.2;
 // How long a surviving flower takes to droop away between waves
@@ -401,11 +401,27 @@ export function waterFlowers(x: number, y: number, r: number) {
 const boostable = (f: Flower) =>
   !f.watered && f.state === FlowerState.Growing && f.growth < 1;
 
-/** True when a water ring of radius `r` at (x, y) would actually boost something. */
-export const wouldWater = (x: number, y: number, r: number) =>
-  beds.some((bed) =>
-    bed.some((f) => boostable(f) && Math.hypot(f.x - x, f.y - y) < r),
-  );
+/** True unless every living flower in reach of a water ring of radius `r` at
+ * (x, y) is already watered or done growing. Bare ground keeps it true: there
+ * is nothing to refuse, and standing off the beds is the player's business. */
+export const wouldWater = (x: number, y: number, r: number) => {
+  let reached = false;
+  for (const bed of beds) {
+    for (const f of bed) {
+      if (
+        f.state !== FlowerState.Growing ||
+        Math.hypot(f.x - x, f.y - y) >= r
+      ) {
+        continue; // trampled and withered slots aren't flowers to water
+      }
+      if (boostable(f)) {
+        return true;
+      }
+      reached = true;
+    }
+  }
+  return !reached;
+};
 
 // Visible, alive, and hittable — what unicorns notice/trample and what the
 // player can sell. A flower under this stays a no-op for both.

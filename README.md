@@ -36,7 +36,7 @@ them away, harvest your blooms, and paint a rainbow before the garden is mulch.
 │              🧙              │
 │              [C]        🦄❗ │
 ├──────────────────────────────┤
-│ 🔊30  ☘️40  💎50  💧10       │  ← tools, priced — tap to buy & fire
+│ 🔊30  ☘️40  💎50  💧20       │  ← tools, priced — tap to buy & fire
 └──────────────────────────────┘
 ```
 
@@ -84,8 +84,10 @@ no-op tools grey out.
   reaches them (`src/noise.ts`).
 - ☘️ **Repel** (40) — 46 px field unicorns steer around; expires after 12 s.
 - 💎 **Attract** (50) — 100 px lure that pulls unicorns off the beds.
-- 💧 **Water** (10) — same ring, boosting growth of the flowers it sweeps.
-  Greys out when every flower in reach is already watered, mature, or gone.
+- 💧 **Water** (20) — same ring, boosting growth (×1.5 for the wave) of the
+  flowers it sweeps.
+  Greys out when there are flowers in reach and every one of them is already
+  watered or mature — on bare ground it stays live.
 
 ### Weather (`src/rain.ts`)
 

@@ -401,7 +401,7 @@ startRing(true);
 updateNoise(1);
 check(
   "watering boosts the reached flower's rate",
-  Math.abs(wet.rate - 0.05 * 1.3) < 1e-12,
+  Math.abs(wet.rate - 0.05 * 1.5) < 1e-12,
 );
 check("a watered flower is flagged for the wave", wet.watered);
 check(
@@ -432,6 +432,19 @@ wet.growth = 0.5;
 check(
   "water is sold when a growing flower is in reach",
   toolbarTap(waterBtn.x, waterBtn.y) === 3 && getCoins() < purse,
+);
+// bare ground is not a no-op to refuse: with nothing in reach the bottle stays live
+for (const bed of beds) {
+  for (const f of bed) {
+    f.x = -500;
+  }
+}
+resetHud();
+addCoins(50);
+const bare = getCoins();
+check(
+  "water is sold where there is no flower at all",
+  toolbarTap(waterBtn.x, waterBtn.y) === 3 && getCoins() < bare,
 );
 
 // --- trample: hooves only hurt what has sprouted past a sprout ---
