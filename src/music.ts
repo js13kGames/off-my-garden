@@ -225,6 +225,13 @@ export function updateMusic() {
     return;
   }
   const [roots, melody, step, type, gain, scale, swing, drums] = track;
+  // A clock gap (tab suspend, breakpoint, stubbed clock) would otherwise make
+  // this loop schedule every missed step in the past — thousands of nodes for
+  // history nobody can hear. More than one lookahead behind → drop the
+  // backlog and resume from now.
+  if (nextTime < ac.currentTime - 0.25) {
+    nextTime = ac.currentTime + 0.05;
+  }
   while (nextTime < ac.currentTime + 0.25) {
     const bar = (stepI / BAR_STEPS) | 0;
     if (drums) {
