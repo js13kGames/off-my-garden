@@ -90,6 +90,9 @@ export function setTrack(t: Track) {
 let ac: AudioContext | undefined;
 let master: GainNode;
 let on = true;
+// Sequencer gate, separate from the context: resetRun stops the music but the
+// context must stay alive for SFX, and the next tap (startMusic) brings it back.
+let playing = false;
 let nextTime = 0;
 let stepI = 0;
 
@@ -149,6 +152,7 @@ function hit(at: number, dur: number, gain: number, cutoff: number) {
 }
 
 export function startMusic() {
+  playing = true;
   if (!ac) {
     ac = new AudioContext();
     master = ac.createGain();
@@ -158,6 +162,10 @@ export function startMusic() {
   } else if (ac.state === "suspended") {
     ac.resume();
   }
+}
+
+export function stopMusic() {
+  playing = false;
 }
 
 export function musicOn(): boolean {
@@ -221,7 +229,7 @@ export function sfx(kind: Sfx) {
 }
 
 export function updateMusic() {
-  if (!ac) {
+  if (!ac || !playing) {
     return;
   }
   const [roots, melody, step, type, gain, scale, swing, drums] = track;

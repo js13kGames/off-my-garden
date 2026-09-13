@@ -32,7 +32,7 @@ import {
 } from "./hud";
 import { drawLep, LEP_START, lep, sendLepTo, updateLep } from "./leprechaun";
 import { start } from "./loop";
-import { setTrack, startMusic, Track, updateMusic } from "./music";
+import { setTrack, startMusic, stopMusic, Track, updateMusic } from "./music";
 import { drawNoise, isRingBusy, startRing, updateNoise } from "./noise";
 import {
   attractors,
@@ -127,6 +127,7 @@ function startRun(fromTutorialButton: boolean) {
 // game runs in an iframe — so this is the one restart path: the tutorial
 // handoff and both end cards go through it.
 function resetRun() {
+  stopMusic(); // back to the title card — the next tap's startMusic() resumes it
   updateNoise(1); // finish any in-flight ring, or it resumes over the new run
   resetGarden();
   unicorns.length = 0; // a leftover uni would trample the fresh garden uncounted
