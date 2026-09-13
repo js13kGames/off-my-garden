@@ -81,15 +81,16 @@ const {
   updatePlaceables,
 } = await import("../src/placeable.ts");
 const { VIEW_W } = await import("../src/canvas.ts");
-const { scareUnicorns, spawnUnicorn, unicorns, updateUnicorns } = await import(
-  "../src/unicorn.ts"
-);
+const { raidOver, scareUnicorns, spawnUnicorn, unicorns, updateUnicorns } =
+  await import("../src/unicorn.ts");
+const { resetWaves, updateWaves } = await import("../src/wave.ts");
 
 // Mirrors of the module-local const enums (they erase at build time and are
 // deliberately not exported). A reorder breaks these checks loudly — the
 // failure itself is the signal to update them.
 const GROWING = 0;
 const TRAMPLED = 1;
+const WITHERING = 2;
 const WARN = 0;
 const WANDER = 1;
 const NOTICE = 2;
@@ -426,6 +427,56 @@ sprout.growth = 0.2;
 updateUnicorns(TICK);
 check("standing blooms trample underfoot", bloom.state === TRAMPLED);
 check("sprouts are beneath a trample", sprout.state === GROWING);
+
+// --- season ending: the raid is over before the last tail clears the edge,
+// and the beds stay up for a grace window so a cleared garden pays out ---
+resetField();
+resetGarden();
+resetWaves();
+// wave 1's roster is 6 and its spawn gap 4 s; clearing the field each step
+// keeps the per-wave cap from stalling the roster
+const burnRoster = () => {
+  for (let i = 0; i < 6; i++) {
+    updateWaves(4);
+    unicorns.length = 0;
+  }
+};
+burnRoster();
+const straggler = spawnAt(200, 300);
+straggler.state = WANDER;
+check("a unicorn still on the prowl holds the raid open", !raidOver());
+straggler.state = LURED;
+check("a lured unicorn is still a threat", !raidOver());
+straggler.state = LEAVE;
+check("one walking home doesn't hold the season open", raidOver());
+
+resetField();
+resetGarden();
+resetWaves();
+for (const f of flowers()) {
+  f.growth = 1;
+}
+burnRoster();
+updateWaves(TICK); // roster spent and the lawn clear — the grace opens
+updateWaves(3); // still inside the 4 s window
+check(
+  "the grace window leaves the beds standing",
+  flowers().every((f) => f.state === GROWING),
+);
+check(
+  "a cleared garden can still be harvested during the grace",
+  !!harvestAtPosition(flowers()[0].x, flowers()[0].y),
+);
+updateWaves(1.5); // past the grace, into the droop
+check(
+  "survivors droop once the grace closes",
+  flowers().some((f) => f.state === WITHERING),
+);
+updateWaves(2); // tail spent — the next season sows
+check(
+  "the next season starts from bare sprouts",
+  flowers().every((f) => f.growth === 0 && f.state === GROWING),
+);
 
 if (failed > 0) {
   console.error(`${failed} check(s) failed`);

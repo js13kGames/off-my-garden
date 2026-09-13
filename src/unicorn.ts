@@ -227,6 +227,15 @@ export function leaveUnicorns() {
   }
 }
 
+// Nobody on the lawn still means the garden harm — everyone left is walking
+// off, either sent home or spooked. The season can end here instead of
+// waiting for the last tail to clear the edge: those seconds are dead time,
+// and a Lured unicorn is still a threat (the attractor only moved it).
+export const raidOver = () =>
+  unicorns.every(
+    (u) => u.state === UnicornState.Leave || u.state === UnicornState.Scared,
+  );
+
 export function updateUnicorns(dt: number) {
   // recomputed below; starts false so a wave with nobody nearby draws no ring
   lep.blocking = false;
